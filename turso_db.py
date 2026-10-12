@@ -44,10 +44,12 @@ class TursoCursor:
         self.client = client
         self._last_results = []
         self._row_index = 0
+        self.rowcount = -1
 
     def execute(self, sql, params=None):
         self._last_results = self.client.execute(sql, params)
         self._row_index = 0
+        self.rowcount = self.client.last_affected_rows
         return self
 
     def fetchone(self):
@@ -110,6 +112,7 @@ class TursoClient:
         self._baton = None
         self._stream_url = None
         self.in_transaction = False
+        self.last_affected_rows = -1
 
     def cursor(self):
         return TursoCursor(self)
@@ -175,6 +178,7 @@ class TursoClient:
         # Fuera de una transacción la consulta se envía y se cierra el stream en un solo viaje
         results = self._pipeline(stmts, close=not self.in_transaction)
         exec_res = results[-1]
+        self.last_affected_rows = exec_res.get("affected_row_count", -1)
 
         cols = [c["name"] for c in exec_res.get("cols", [])]
         return [TursoRow(cols, [_decode_cell(c) for c in r]) for r in exec_res.get("rows", [])]

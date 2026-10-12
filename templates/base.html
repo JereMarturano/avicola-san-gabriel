@@ -110,13 +110,14 @@
   </main>
 
   {% if session.get('user_id') %}
-  <!-- Barra de navegación inferior -->
+  <!-- Barra de navegación inferior (oculta en el conteo, que tiene su propio pie) -->
   {% macro item_nav(endpoint, icono, texto) %}
   <a href="{{ url_for(endpoint) }}" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors {% if request.endpoint == endpoint %}text-emerald-400{% else %}text-slate-400 hover:text-slate-200{% endif %}">
     <i class="fa-solid {{ icono }} text-lg"></i>
     <span>{{ texto }}</span>
   </a>
   {% endmacro %}
+  {% if request.endpoint != 'inventario' %}
   <nav class="fixed bottom-0 inset-x-0 z-40 bg-slate-950/90 backdrop-blur-lg border-t border-slate-800/80 pb-[env(safe-area-inset-bottom,0px)]">
     <div class="max-w-md md:max-w-3xl mx-auto flex items-center h-16 px-2">
       {{ item_nav('index', 'fa-boxes-stacked', 'Stock') }}
@@ -131,6 +132,7 @@
       {% endif %}
     </div>
   </nav>
+  {% endif %}
 
   <!-- MODAL: NUEVA OPERACIÓN (bottom sheet en celular) -->
   <div id="modal-operacion-backdrop" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300" onclick="cerrarModalOperacion(event)">
@@ -156,6 +158,9 @@
             <i class="fa-solid fa-truck-fast"></i><span>Despacho</span>
           </button>
         </div>
+        <p id="descripcion-operacion" class="mt-3 text-sm text-slate-300 flex items-center gap-2">
+          <i class="fa-solid fa-circle-info text-slate-400"></i><span></span>
+        </p>
       </div>
 
       <form action="{{ url_for('registrar_operacion') }}" method="POST" id="form-operacion" class="flex flex-col min-h-0 flex-1">
@@ -189,7 +194,7 @@
           <!-- Disponible en galpón (solo al clasificar) -->
           <div id="panel-origen-galpon" class="hidden rounded-xl p-3.5 bg-sky-500/10 ring-1 ring-sky-500/30 flex items-center justify-between gap-3">
             <div class="min-w-0">
-              <div class="text-xs font-semibold text-sky-300">Disponible en galpón</div>
+              <div id="titulo-disponible" class="text-xs font-semibold text-sky-300">Sin hacer disponible</div>
               <div id="badge-galpon-disponible" class="text-base font-bold text-white tabular-nums">0 caj.</div>
               <div id="badge-galpon-maples" class="text-xs text-slate-400 tabular-nums">0 maples</div>
             </div>
@@ -204,7 +209,7 @@
             <div class="grid grid-cols-4 gap-2">
               {% for cal in ['Chico', 'Mediano', 'Grande', 'Especial'] %}
               <label class="cursor-pointer">
-                <input type="radio" name="calibre" value="{{ cal }}" class="sr-only peer" {% if cal == 'Mediano' %}checked{% endif %} onchange="calcularPreview()">
+                <input type="radio" name="calibre" value="{{ cal }}" class="sr-only peer" {% if cal == 'Mediano' %}checked{% endif %} onchange="actualizarEstadoGalpon()">
                 <div class="h-11 rounded-xl flex items-center justify-center ring-1 ring-slate-700 bg-slate-800/60 text-sm font-semibold text-slate-200 transition-all active:scale-95 peer-checked:ring-emerald-400 peer-checked:bg-emerald-500/15 peer-checked:text-emerald-200">
                   {{ cal }}
                 </div>
@@ -267,6 +272,9 @@
 
         <!-- Pie fijo: resumen + confirmar (siempre visible) -->
         <div class="shrink-0 border-t border-slate-800 bg-slate-900 px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-2.5">
+          <div id="aviso-pie" class="hidden text-sm font-semibold text-red-300 flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i><span></span>
+          </div>
           <div class="flex items-center justify-between text-sm">
             <span class="text-slate-400">Total a registrar</span>
             <span id="preview-total" class="font-bold text-white tabular-nums">0 caj.</span>
@@ -295,11 +303,8 @@
       setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4500);
     });
 
-    // Stock en galpón (maples) inyectado por el servidor
-    const STOCK_GALPON = {
-      "Blanco": {{ (global_por_seleccionar['Blanco'].total_maples if global_por_seleccionar and 'Blanco' in global_por_seleccionar else 0) }},
-      "De Color": {{ (global_por_seleccionar['De Color'].total_maples if global_por_seleccionar and 'De Color' in global_por_seleccionar else 0) }}
-    };
+    // Maples disponibles por compartimento (sin hacer por color; hecho por color y calibre)
+    const STOCK = {{ (stock_js if stock_js is defined else {'sin_hacer': {}, 'hecho': {}})|tojson }};
 
     // Formato de granja: 230 maples -> "19 caj. + 2 map."
     function fmtCaj(maples) {
@@ -347,21 +352,36 @@
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModalOperacion(); });
 
-    // Muestra lo disponible en galpón para el color elegido
+    // Cuánto hay para la operación elegida: sin hacer (clasificar) o hecho del calibre (despachar)
+    function disponibleActual() {
+      const tipo = document.getElementById('input-tipo')?.value;
+      const color = getColorSeleccionado();
+      if (tipo === 'clasificacion') return (STOCK.sin_hacer || {})[color] || 0;
+      if (tipo === 'venta') return ((STOCK.hecho || {})[color] || {})[getCalibreSeleccionado()] || 0;
+      return null;
+    }
+
     function actualizarEstadoGalpon() {
-      const disponibles = STOCK_GALPON[getColorSeleccionado()] || 0;
+      const tipo = document.getElementById('input-tipo')?.value;
+      const disponibles = disponibleActual();
+      const titulo = document.getElementById('titulo-disponible');
       const badge = document.getElementById('badge-galpon-disponible');
-      const btnTodo = document.getElementById('btn-clasificar-todo');
-      if (badge) badge.innerText = fmtCaj(disponibles);
       const badgeMaples = document.getElementById('badge-galpon-maples');
-      if (badgeMaples) badgeMaples.innerText = `${disponibles} maples`;
-      if (btnTodo) btnTodo.disabled = disponibles === 0;
-      if (btnTodo) btnTodo.classList.toggle('opacity-40', disponibles === 0);
+      const btnTodo = document.getElementById('btn-clasificar-todo');
+      if (disponibles !== null && badge) {
+        titulo.innerText = tipo === 'venta'
+          ? `Hecho disponible · ${getColorSeleccionado()} ${getCalibreSeleccionado()}`
+          : `Sin hacer disponible · ${getColorSeleccionado()}`;
+        badge.innerText = fmtCaj(disponibles);
+        badgeMaples.innerText = `${disponibles} maples`;
+        btnTodo.disabled = disponibles === 0;
+        btnTodo.classList.toggle('opacity-40', disponibles === 0);
+      }
       calcularPreview();
     }
 
     function clasificarTodoGalpon() {
-      const disponibles = STOCK_GALPON[getColorSeleccionado()] || 0;
+      const disponibles = disponibleActual() || 0;
       document.getElementById('input-cajones').value = Math.floor(disponibles / 12);
       document.getElementById('input-maples').value = disponibles % 12;
       calcularPreview();
@@ -369,9 +389,12 @@
 
     // Configuración visual de cada tipo de operación
     const OPERACIONES = {
-      ingreso_galpon: { tab: 'tab-ingreso', activo: 'bg-emerald-600', boton: 'bg-emerald-600 hover:bg-emerald-500', texto: 'Confirmar ingreso', calibre: false, galpon: false },
-      clasificacion: { tab: 'tab-clasificacion', activo: 'bg-sky-600', boton: 'bg-sky-600 hover:bg-sky-500', texto: 'Confirmar clasificación', calibre: 'Calibre de destino', galpon: true },
-      venta: { tab: 'tab-venta', activo: 'bg-amber-600', boton: 'bg-amber-600 hover:bg-amber-500', texto: 'Confirmar despacho', calibre: 'Calibre a despachar', galpon: false },
+      ingreso_galpon: { tab: 'tab-ingreso', activo: 'bg-emerald-600', boton: 'bg-emerald-600 hover:bg-emerald-500', texto: 'Confirmar ingreso', calibre: false, galpon: false,
+        descripcion: 'Huevo que entra del galpón. Queda como sin hacer.' },
+      clasificacion: { tab: 'tab-clasificacion', activo: 'bg-sky-600', boton: 'bg-sky-600 hover:bg-sky-500', texto: 'Confirmar clasificación', calibre: 'Calibre en que queda hecho', galpon: true,
+        descripcion: 'Pasa huevo de sin hacer a hecho, en el calibre que elijas.' },
+      venta: { tab: 'tab-venta', activo: 'bg-amber-600', boton: 'bg-amber-600 hover:bg-amber-500', texto: 'Confirmar despacho', calibre: 'Calibre a despachar', galpon: true,
+        descripcion: 'Sale huevo hecho hacia un cliente.' },
     };
 
     function setOperacionTipo(tipo) {
@@ -385,6 +408,9 @@
 
       document.getElementById('seccion-calibre').classList.toggle('hidden', !op.calibre);
       if (op.calibre) document.getElementById('etiqueta-calibre').innerText = op.calibre;
+      document.querySelector('#descripcion-operacion span').innerText = op.descripcion;
+      const usarTodo = document.querySelector('#btn-clasificar-todo span');
+      if (usarTodo) usarTodo.innerText = 'Usar todo';
       document.getElementById('panel-origen-galpon').classList.toggle('hidden', !op.galpon);
       document.getElementById('indicador-restante-galpon').classList.toggle('hidden', !op.galpon);
 
@@ -410,8 +436,17 @@
       parcial: { caja: 'bg-sky-500/10 ring-sky-500/40', icono: 'bg-sky-500/20 text-sky-300', fa: 'fa-arrow-down-wide-short', barra: 'bg-sky-400' },
     };
 
+    // Aviso junto al botón de confirmar, para que el motivo del bloqueo siempre esté a la vista
+    function avisoPie(texto) {
+      const aviso = document.getElementById('aviso-pie');
+      if (!aviso) return;
+      aviso.classList.toggle('hidden', !texto);
+      aviso.querySelector('span').innerText = texto || '';
+    }
+
     function pintarIndicador(estado, titulo, subtitulo, pct) {
       const e = ESTADOS_GALPON[estado];
+      avisoPie(estado === 'vacio' || estado === 'excede' ? titulo : '');
       document.getElementById('indicador-restante-galpon').className = `rounded-xl p-3.5 ring-1 space-y-2.5 ${e.caja}`;
       const icono = document.getElementById('icono-estado-restante');
       icono.className = `w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm ${e.icono}`;
@@ -436,34 +471,39 @@
         preview.innerHTML = `${fmtCaj(total)} <span class="text-slate-400 font-normal">· ${total} maples</span>`;
       }
 
-      if (tipo !== 'clasificacion') {
+      if (tipo === 'ingreso_galpon') {
+        avisoPie('');
         habilitarConfirmar(total > 0);
         return;
       }
 
-      const disponibles = STOCK_GALPON[color] || 0;
+      const disponibles = disponibleActual();
       const restantes = disponibles - total;
+      const esDespacho = tipo === 'venta';
+      const que = esDespacho
+        ? `${color} ${getCalibreSeleccionado()} hecho`
+        : `${color.toLowerCase()} sin hacer`;
 
       if (disponibles === 0) {
-        pintarIndicador('vacio', `No hay huevo ${color.toLowerCase()} en galpón para clasificar`,
-          'Primero registrá un ingreso al galpón.', 0);
+        pintarIndicador('vacio', `No hay ${que}`,
+          esDespacho ? 'Primero hay que clasificar huevo en este calibre.' : 'Primero registrá un ingreso al galpón.', 0);
         habilitarConfirmar(false);
       } else if (total > disponibles) {
         pintarIndicador('excede', `Te pasás por ${fmtCaj(-restantes)}`,
-          `En galpón hay ${fmtCaj(disponibles)} (${disponibles} maples).`, 100);
+          `Hay ${fmtCaj(disponibles)} de ${que}.`, 100);
         habilitarConfirmar(false);
       } else if (total === 0) {
-        pintarIndicador('neutro', `En galpón hay ${fmtCaj(disponibles)} para clasificar`,
-          'Ingresá cuánto vas a clasificar o tocá "Usar todo".', 0);
+        pintarIndicador('neutro', `Hay ${fmtCaj(disponibles)} de ${que}`,
+          'Ingresá la cantidad o tocá "Usar todo".', 0);
         habilitarConfirmar(false);
       } else if (restantes === 0) {
-        pintarIndicador('completo', 'Clasificás todo el galpón',
-          `No queda huevo ${color.toLowerCase()} sin clasificar.`, 100);
+        pintarIndicador('completo', esDespacho ? `Despachás todo lo ${que}` : 'Pasás todo lo sin hacer a hecho',
+          esDespacho ? 'Este calibre queda en cero.' : `No queda huevo ${color.toLowerCase()} sin hacer.`, 100);
         habilitarConfirmar(true);
       } else {
         const pct = Math.round((total / disponibles) * 100);
-        pintarIndicador('parcial', `Quedan ${fmtCaj(restantes)} en galpón`,
-          `Clasificás el ${pct}% de lo disponible.`, pct);
+        pintarIndicador('parcial', `Quedan ${fmtCaj(restantes)} de ${que}`,
+          `Usás el ${pct}% de lo disponible.`, pct);
         habilitarConfirmar(true);
       }
     }

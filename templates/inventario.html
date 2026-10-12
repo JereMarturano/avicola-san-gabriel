@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% from "_macros.html" import titulo_seccion, punto_color %}
+
+{% block title %}Conteo de inventario - Avícola San Gabriel{% endblock %}
+
+{% macro fila_conteo(c, etiqueta) %}
+<div class="fila-conteo rounded-xl p-3 bg-slate-950/70 ring-1 ring-slate-800 transition-all" data-i="{{ c.i }}" data-original="{{ c.info.total_maples }}" data-estado="{{ c.estado }}"
+  data-nombre="{{ ('Sin hacer · ' ~ c.color) if c.estado == 'por_seleccionar' else ('Hecho · ' ~ c.color ~ ' ' ~ c.calibre) }}">
+  <div class="flex items-center justify-between gap-2 mb-2">
+    <div class="flex items-center gap-2 min-w-0 text-sm font-semibold {% if c.color == 'Blanco' %}text-slate-100{% else %}text-amber-200{% endif %}">
+      {{ punto_color(c.color) }}<span class="truncate">{{ etiqueta }}</span>
+    </div>
+    <div class="text-xs text-slate-400 shrink-0 tabular-nums">Antes: <span class="text-slate-300 font-medium">{{ c.info.total_maples|cant }}</span></div>
+  </div>
+  <input type="hidden" name="orig_{{ c.i }}" value="{{ c.info.total_maples }}">
+  <div class="grid grid-cols-2 gap-2">
+    <label class="relative block">
+      <span class="sr-only">Cajones de {{ etiqueta }}</span>
+      <input type="number" min="0" step="1" inputmode="numeric" name="caj_{{ c.i }}" value="{{ c.info.cajones_enteros }}" onfocus="this.select()" oninput="recalcular()"
+        class="w-full h-12 bg-slate-900 rounded-lg pl-3 pr-12 text-lg font-bold text-white tabular-nums ring-1 ring-slate-700 border-0 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 pointer-events-none">caj.</span>
+    </label>
+    <label class="relative block">
+      <span class="sr-only">Maples sueltos de {{ etiqueta }}</span>
+      <input type="number" min="0" max="11" step="1" inputmode="numeric" name="map_{{ c.i }}" value="{{ c.info.maples_resto }}" onfocus="this.select()" oninput="recalcular()"
+        class="w-full h-12 bg-slate-900 rounded-lg pl-3 pr-12 text-lg font-bold text-white tabular-nums ring-1 ring-slate-700 border-0 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 pointer-events-none">map.</span>
+    </label>
+  </div>
+  <div class="diferencia-conteo hidden mt-2 text-xs font-semibold tabular-nums"></div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<form action="{{ url_for('inventario') }}" method="POST" id="form-inventario" class="space-y-4 pt-1 pb-28">
+
+  <div class="flex items-start justify-between gap-3">
+    {{ titulo_seccion('fa-clipboard-check', 'Conteo de inventario', 'Cargá lo que hay hoy en la granja') }}
+    <a href="{{ url_for('index') }}" class="shrink-0 h-9 px-3 rounded-lg text-sm font-semibold text-slate-300 hover:bg-slate-800 flex items-center gap-1.5">
+      <i class="fa-solid fa-xmark"></i> Cancelar
+    </a>
+  </div>
+
+  <div class="rounded-xl p-3.5 bg-sky-500/10 ring-1 ring-sky-500/30 text-sm text-sky-100 flex gap-3">
+    <i class="fa-solid fa-circle-info text-sky-400 mt-0.5"></i>
+    <p>Ya están cargados los valores actuales. <b>Cambiá solo lo que no coincide</b> con lo que contaste. Cada diferencia queda registrada en el historial como ajuste de inventario.</p>
+  </div>
+
+  <!-- SIN HACER -->
+  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      {{ titulo_seccion('fa-wheat-awn', 'Sin hacer', 'En galpón, falta clasificar', 'text-amber-400') }}
+      <span class="shrink-0 text-sm font-bold text-white tabular-nums" id="subtotal-sin-hacer"></span>
+    </div>
+    <div class="grid md:grid-cols-2 gap-2.5">
+      {% for c in compartimentos if c.estado == 'por_seleccionar' %}
+        {{ fila_conteo(c, c.color) }}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- HECHO -->
+  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-4">
+    <div class="flex items-center justify-between gap-3">
+      {{ titulo_seccion('fa-boxes-stacked', 'Hecho', 'Clasificado por calibre') }}
+      <span class="shrink-0 text-sm font-bold text-white tabular-nums" id="subtotal-hecho"></span>
+    </div>
+    {% for color in ['Blanco', 'De Color'] %}
+    <div class="space-y-2">
+      <h3 class="text-xs font-bold uppercase tracking-wide text-slate-400 flex items-center gap-2">{{ punto_color(color) }} {{ color }}</h3>
+      <div class="grid md:grid-cols-2 gap-2.5">
+        {% for c in compartimentos if c.estado == 'seleccionado' and c.color == color %}
+          {{ fila_conteo(c, c.calibre) }}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <!-- NOTA -->
+  <label class="block bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4">
+    <span class="etiqueta-campo">Motivo del conteo <span class="normal-case font-normal text-slate-500">(opcional)</span></span>
+    <input type="text" name="nota" maxlength="200" placeholder="Ej: conteo inicial, control de fin de semana"
+      class="w-full h-12 bg-slate-950 ring-1 ring-slate-700 focus:ring-2 focus:ring-emerald-500 rounded-xl px-3.5 text-base text-white placeholder-slate-500 focus:outline-none border-0">
+  </label>
+
+  <!-- PIE FIJO: total contado + guardar -->
+  <div class="fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div class="max-w-md md:max-w-3xl mx-auto px-4 pt-3 flex items-center gap-3">
+      <div class="min-w-0 flex-1">
+        <div class="text-xs text-slate-400">Stock total contado</div>
+        <div class="text-base font-bold text-white tabular-nums truncate" id="total-contado"></div>
+        <div class="text-xs font-semibold" id="cantidad-cambios"></div>
+      </div>
+      <button type="button" id="btn-revisar" onclick="abrirRevision()" class="shrink-0 h-12 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold flex items-center gap-2 active:scale-[0.98] transition-all">
+        <i class="fa-solid fa-list-check"></i> Revisar
+      </button>
+    </div>
+  </div>
+
+  <!-- REVISIÓN DE CAMBIOS ANTES DE GUARDAR -->
+  <div id="revision-backdrop" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-end justify-center" onclick="cerrarRevision()">
+    <div class="w-full max-w-lg bg-slate-900 ring-1 ring-slate-800 rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col" onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="titulo-revision">
+      <div class="px-5 pt-4 pb-3 border-b border-slate-800 flex items-center justify-between">
+        <h2 id="titulo-revision" class="text-lg font-bold text-white">Revisá los cambios</h2>
+        <button type="button" onclick="cerrarRevision()" aria-label="Cerrar" class="w-9 h-9 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <ul id="lista-cambios" class="overflow-y-auto px-5 py-2 divide-y divide-slate-800"></ul>
+      <div class="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-800 space-y-2.5">
+        <div class="flex justify-between text-sm">
+          <span class="text-slate-400">Stock total después del conteo</span>
+          <span class="font-bold text-white tabular-nums" id="total-revision"></span>
+        </div>
+        <button type="submit" id="btn-guardar-conteo" class="boton-confirmar bg-emerald-600 hover:bg-emerald-500">
+          <i class="fa-solid fa-check"></i> <span>Guardar conteo</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const filas = [...document.querySelectorAll('.fila-conteo')];
+
+  function contadoDeFila(fila) {
+    const i = fila.dataset.i;
+    const caj = parseInt(document.querySelector(`[name="caj_${i}"]`).value, 10) || 0;
+    const map = parseInt(document.querySelector(`[name="map_${i}"]`).value, 10) || 0;
+    return Math.max(0, caj) * 12 + Math.max(0, map);
+  }
+
+  function datosFila(fila) {
+    const original = parseInt(fila.dataset.original, 10);
+    const contado = contadoDeFila(fila);
+    return { fila, original, contado, diferencia: contado - original, nombre: fila.dataset.nombre };
+  }
+
+  function recalcular() {
+    let totalSinHacer = 0, totalHecho = 0, cambios = 0;
+    for (const fila of filas) {
+      const d = datosFila(fila);
+      if (fila.dataset.estado === 'por_seleccionar') totalSinHacer += d.contado; else totalHecho += d.contado;
+
+      const etiqueta = fila.querySelector('.diferencia-conteo');
+      const cambio = d.diferencia !== 0;
+      fila.classList.toggle('ring-amber-500/60', cambio);
+      fila.classList.toggle('bg-amber-500/5', cambio);
+      fila.classList.toggle('ring-slate-800', !cambio);
+      etiqueta.classList.toggle('hidden', !cambio);
+      if (cambio) {
+        cambios++;
+        etiqueta.className = `diferencia-conteo mt-2 text-xs font-semibold tabular-nums ${d.diferencia > 0 ? 'text-emerald-400' : 'text-amber-400'}`;
+        etiqueta.innerText = `${d.diferencia > 0 ? 'Suma' : 'Resta'} ${fmtCaj(Math.abs(d.diferencia))} · queda en ${fmtCaj(d.contado)}`;
+      }
+    }
+
+    document.getElementById('subtotal-sin-hacer').innerText = fmtCaj(totalSinHacer);
+    document.getElementById('subtotal-hecho').innerText = fmtCaj(totalHecho);
+    document.getElementById('total-contado').innerText = fmtCaj(totalSinHacer + totalHecho);
+
+    const textoCambios = document.getElementById('cantidad-cambios');
+    textoCambios.innerText = cambios === 0 ? 'Sin cambios' : `${cambios} ${cambios === 1 ? 'cambio' : 'cambios'}`;
+    textoCambios.className = `text-xs font-semibold ${cambios ? 'text-amber-400' : 'text-slate-500'}`;
+    document.getElementById('btn-revisar').disabled = cambios === 0;
+    return totalSinHacer + totalHecho;
+  }
+
+  function abrirRevision() {
+    const total = recalcular();
+    const lista = document.getElementById('lista-cambios');
+    lista.innerHTML = '';
+    for (const fila of filas) {
+      const d = datosFila(fila);
+      if (!d.diferencia) continue;
+      const li = document.createElement('li');
+      li.className = 'py-3 flex items-center justify-between gap-3';
+      li.innerHTML = `
+        <div class="min-w-0">
+          <div class="text-sm font-semibold text-white truncate"></div>
+          <div class="text-xs text-slate-400 tabular-nums"></div>
+        </div>
+        <div class="text-sm font-bold tabular-nums shrink-0 ${d.diferencia > 0 ? 'text-emerald-400' : 'text-amber-400'}"></div>`;
+      li.children[0].children[0].textContent = d.nombre;
+      li.children[0].children[1].textContent = `${fmtCaj(d.original)} → ${fmtCaj(d.contado)}`;
+      li.children[1].textContent = `${d.diferencia > 0 ? '+' : '−'}${fmtCaj(Math.abs(d.diferencia))}`;
+      lista.appendChild(li);
+    }
+    document.getElementById('total-revision').innerText = fmtCaj(total);
+    const backdrop = document.getElementById('revision-backdrop');
+    backdrop.classList.remove('hidden');
+    backdrop.classList.add('flex');
+  }
+
+  function cerrarRevision() {
+    const backdrop = document.getElementById('revision-backdrop');
+    backdrop.classList.add('hidden');
+    backdrop.classList.remove('flex');
+  }
+
+  // Maples sueltos válidos: de 0 a 11 (12 maples ya son un cajón)
+  for (const inp of document.querySelectorAll('input[name^="map_"]')) {
+    inp.addEventListener('change', () => {
+      const valor = parseInt(inp.value, 10) || 0;
+      if (valor > 11) {
+        const caj = document.querySelector(`[name="caj_${inp.name.slice(4)}"]`);
+        caj.value = (parseInt(caj.value, 10) || 0) + Math.floor(valor / 12);
+        inp.value = valor % 12;
+        recalcular();
+      }
+    });
+  }
+
+  document.getElementById('form-inventario').addEventListener('submit', () => {
+    const btn = document.getElementById('btn-guardar-conteo');
+    setTimeout(() => { btn.disabled = true; btn.classList.add('opacity-60'); }, 0);
+    btn.querySelector('span').innerText = 'Guardando...';
+  });
+
+  recalcular();
+</script>
+{% endblock %}

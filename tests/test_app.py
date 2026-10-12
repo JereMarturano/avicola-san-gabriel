@@ -165,5 +165,83 @@ class TestSesionYUsuarios(BaseTest):
         self.assertEqual(self.client.get("/").status_code, 302)
 
 
+class TestConteoInventario(BaseTest):
+    """Conteo de inventario: fija el stock real y registra cada diferencia."""
+
+    def formulario(self, cambios=None, nota=""):
+        """Arma el POST con el stock actual, aplicando los cambios {(estado, color, calibre): maples}."""
+        datos = {"nota": nota}
+        for i, clave in enumerate(app_module.COMPARTIMENTOS_STOCK):
+            actual = stock(*clave)
+            nuevo = (cambios or {}).get(clave, actual)
+            datos.update({f"orig_{i}": str(actual), f"caj_{i}": str(nuevo // 12), f"map_{i}": str(nuevo % 12)})
+        return datos
+
+    def setUp(self):
+        super().setUp()
+        self.login()
+
+    def test_conteo_fija_hecho_y_sin_hacer_sin_ingreso_previo(self):
+        resp = self.client.post("/inventario", data=self.formulario({
+            ("por_seleccionar", "Blanco", "Sin Clasificar"): 50,
+            ("seleccionado", "Blanco", "Chico"): 120,
+            ("seleccionado", "De Color", "Grande"): 30,
+        }, nota="conteo inicial"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(stock("por_seleccionar", "Blanco", "Sin Clasificar"), 50)
+        self.assertEqual(stock("seleccionado", "Blanco", "Chico"), 120)
+        self.assertEqual(stock("seleccionado", "De Color", "Grande"), 30)
+        with db() as conn:
+            movs = conn.execute("SELECT tipo, total_maples, detalle FROM movimientos ORDER BY id").fetchall()
+        self.assertEqual([m["total_maples"] for m in movs], [50, 120, 30])
+        self.assertTrue(all(m["tipo"] == "Ajuste Stock" for m in movs))
+        self.assertIn("conteo inicial", movs[0]["detalle"])
+
+    def test_conteo_registra_la_diferencia_negativa(self):
+        self.operar(tipo="ingreso_galpon", color="Blanco", cajones="10", maples="0")
+        self.client.post("/inventario", data=self.formulario({("por_seleccionar", "Blanco", "Sin Clasificar"): 100}))
+        self.assertEqual(stock("por_seleccionar", "Blanco", "Sin Clasificar"), 100)
+        with db() as conn:
+            ultimo = conn.execute("SELECT total_maples FROM movimientos ORDER BY id DESC LIMIT 1").fetchone()[0]
+        self.assertEqual(ultimo, -20)
+
+    def test_conteo_sin_cambios_no_registra_nada(self):
+        self.client.post("/inventario", data=self.formulario())
+        self.assertEqual(cantidad_movimientos(), 0)
+
+    def test_conteo_no_pisa_un_movimiento_registrado_mientras_tanto(self):
+        datos = self.formulario({("seleccionado", "Blanco", "Mediano"): 60})
+        # Mientras el admin cuenta, otro usuario registra un ingreso y una clasificación
+        self.operar(tipo="ingreso_galpon", color="Blanco", cajones="2", maples="0")
+        self.operar(tipo="clasificacion", color="Blanco", calibre="Mediano", cajones="1", maples="0")
+        self.client.post("/inventario", data=datos)
+        self.assertEqual(stock("seleccionado", "Blanco", "Mediano"), 12)
+        self.assertEqual(cantidad_movimientos(), 2)
+
+    def test_conteo_con_valores_invalidos_no_cambia_nada(self):
+        datos = self.formulario({("seleccionado", "Blanco", "Chico"): 24})
+        datos["caj_3"] = "-5"
+        self.client.post("/inventario", data=datos)
+        self.assertEqual(stock("seleccionado", "Blanco", "Chico"), 0)
+        self.assertEqual(cantidad_movimientos(), 0)
+
+    def test_operario_no_puede_hacer_conteo(self):
+        from werkzeug.security import generate_password_hash
+        with db() as conn:
+            conn.execute("INSERT INTO usuarios (username, password_hash, nombre, rol) VALUES ('op', ?, 'Op', 'Operario')",
+                         (generate_password_hash("clave123"),))
+        self.client.post("/logout")
+        self.login("op", "clave123")
+        self.assertEqual(self.client.get("/inventario").status_code, 302)
+        self.client.post("/inventario", data=self.formulario({("seleccionado", "Blanco", "Chico"): 24}))
+        self.assertEqual(stock("seleccionado", "Blanco", "Chico"), 0)
+
+    def test_pantalla_de_conteo_muestra_valores_actuales(self):
+        self.operar(tipo="ingreso_galpon", color="De Color", cajones="3", maples="5")
+        html = self.client.get("/inventario").get_data(as_text=True)
+        self.assertIn('name="caj_1" value="3"', html)
+        self.assertIn('name="map_1" value="5"', html)
+
+
 if __name__ == "__main__":
     unittest.main()

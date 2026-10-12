@@ -38,6 +38,22 @@ ROLES_VALIDOS = {'Admin', 'Operario'}
 TIPOS_OPERACION = {'ingreso_galpon', 'clasificacion', 'venta', 'ajuste'}
 ESTADOS_STOCK = {'por_seleccionar', 'seleccionado'}
 
+# Todos los compartimentos de stock, en el orden en que se muestran en el conteo de inventario
+COMPARTIMENTOS_STOCK = (
+    [('por_seleccionar', color, 'Sin Clasificar') for color in ('Blanco', 'De Color')] +
+    [('seleccionado', color, calibre) for color in ('Blanco', 'De Color')
+     for calibre in ('Chico', 'Mediano', 'Grande', 'Especial')]
+)
+
+# Nombres que usa la granja (en la base siguen siendo por_seleccionar / seleccionado)
+NOMBRE_ESTADO = {'por_seleccionar': 'Sin hacer', 'seleccionado': 'Hecho'}
+NOMBRE_TIPO_MOVIMIENTO = {
+    'Ingreso Galpón': 'Ingreso al galpón',
+    'Clasificación': 'Clasificación',
+    'Venta / Despacho': 'Despacho',
+    'Ajuste Stock': 'Ajuste de inventario',
+}
+
 # La base guarda las fechas en UTC (CURRENT_TIMESTAMP); Argentina es UTC-3 todo el año
 OFFSET_ARGENTINA = '-3 hours'
 
@@ -219,6 +235,10 @@ def dia_local(fecha_utc):
         return 'Ayer'
     return f"{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][dia.weekday()]} {dia.strftime('%d/%m')}"
 
+@app.template_filter('nombre_tipo')
+def nombre_tipo(tipo):
+    return NOMBRE_TIPO_MOVIMIENTO.get(tipo, tipo)
+
 @app.template_filter('nota_usuario')
 def nota_usuario(detalle):
     """
@@ -228,7 +248,7 @@ def nota_usuario(detalle):
     detalle = (detalle or '').strip()
     if detalle.startswith('Venta/Despacho:'):
         return detalle.split('Cliente/Nota:', 1)[1].strip() if 'Cliente/Nota:' in detalle else ''
-    if detalle.startswith('Ajuste inventario'):
+    if detalle.startswith('Ajuste inventario') or detalle.startswith('Conteo de inventario'):
         return detalle.split('). ', 1)[1].strip() if '). ' in detalle else ''
     return detalle.split('. ', 1)[1].strip() if '. ' in detalle else ''
 
@@ -241,7 +261,13 @@ def inject_stock():
     return {
         'global_por_seleccionar': por_sel,
         'global_seleccionado': sel,
-        'global_resumen': res
+        'global_resumen': res,
+        # Maples disponibles por compartimento, para validar en el formulario antes de enviar
+        'stock_js': {
+            'sin_hacer': {color: info['total_maples'] for color, info in por_sel.items()},
+            'hecho': {color: {cal: info['total_maples'] for cal, info in calibres.items()}
+                      for color, calibres in sel.items()},
+        },
     }
 
 # ==============================================================================
@@ -353,7 +379,7 @@ def registrar_operacion():
                     INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'Ingreso Galpón', ?, 'Sin Clasificar', ?, ?, ?, ?)
                 """, (usuario, color, c_val, m_val, total_maples, detalle))
-                flash(f"Ingreso registrado: {cantidad_texto(total_maples)} de {color} a 'Por Seleccionar'.", "success")
+                flash(f"Ingreso registrado: {cantidad_texto(total_maples)} de {color}, quedan como sin hacer.", "success")
                 
             elif tipo == 'clasificacion':
                 # Verificar stock disponible en galpón
@@ -365,7 +391,7 @@ def registrar_operacion():
                 disponible = disp_row['cantidad_maples'] if disp_row else 0
                 
                 if disponible < total_maples:
-                    flash(f"Stock insuficiente en galpón: hay {cantidad_texto(disponible)} de {color}.", "danger")
+                    flash(f"No alcanza: hay {cantidad_texto(disponible)} de {color} sin hacer.", "danger")
                     return redirect(url_for('index'))
                     
                 # Descontar de galpón y sumar a seleccionado
@@ -386,7 +412,7 @@ def registrar_operacion():
                     INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'Clasificación', ?, ?, ?, ?, ?, ?)
                 """, (usuario, color, calibre, c_val, m_val, total_maples, detalle))
-                flash(f"Clasificación registrada: {cantidad_texto(total_maples)} pasados a {color} {calibre}.", "success")
+                flash(f"Clasificación registrada: {cantidad_texto(total_maples)} de {color} pasaron a hecho ({calibre}).", "success")
                 
             elif tipo == 'venta':
                 cursor.execute("""
@@ -397,7 +423,7 @@ def registrar_operacion():
                 disponible = disp_row['cantidad_maples'] if disp_row else 0
                 
                 if disponible < total_maples:
-                    flash(f"Stock insuficiente: solo hay {cantidad_texto(disponible)} de {color} {calibre}.", "danger")
+                    flash(f"No alcanza: hay {cantidad_texto(disponible)} de {color} {calibre} hecho.", "danger")
                     return redirect(url_for('index'))
                     
                 cursor.execute("""
@@ -588,6 +614,75 @@ def usuarios():
         lista_usuarios = cursor.fetchall()
         
     return render_template('usuarios.html', usuarios=lista_usuarios)
+
+# ==============================================================================
+# CONTEO DE INVENTARIO (fija el stock real contado en la granja)
+# ==============================================================================
+@app.route('/inventario', methods=['GET', 'POST'])
+@admin_required
+def inventario():
+    """
+    Permite cargar lo que hay realmente en cada compartimento (sin hacer / hecho por calibre).
+    Cada diferencia queda registrada como 'Ajuste Stock' en el historial, todo en una transacción.
+    Si el stock cambió desde que se abrió el formulario, no se pisa: se pide revisar de nuevo.
+    """
+    if request.method == 'POST':
+        nota = request.form.get('nota', '').strip()[:200]
+        usuario = session.get('user_nombre', 'Admin')
+
+        cambios = []
+        for i, (estado, color, calibre) in enumerate(COMPARTIMENTOS_STOCK):
+            contado = StockService.calcular_maples_totales(
+                request.form.get(f'caj_{i}', '0'), request.form.get(f'map_{i}', '0'))
+            original = request.form.get(f'orig_{i}', '')
+            if contado is None or not original.isdigit():
+                flash("Hay cantidades inválidas en el conteo. Revisá los valores.", "danger")
+                return redirect(url_for('inventario'))
+            if contado != int(original):
+                cambios.append((estado, color, calibre, int(original), contado))
+
+        if not cambios:
+            flash("No hubo cambios: el conteo coincide con el stock actual.", "info")
+            return redirect(url_for('index'))
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            try:
+                for estado, color, calibre, original, contado in cambios:
+                    # Solo actualiza si el valor sigue siendo el que vio el usuario (evita pisar movimientos)
+                    cursor.execute("""
+                        UPDATE stock SET cantidad_maples = ?
+                        WHERE estado = ? AND color = ? AND calibre = ? AND cantidad_maples = ?
+                    """, (contado, estado, color, calibre, original))
+                    if cursor.rowcount != 1:
+                        conn.rollback()
+                        flash("El stock cambió mientras hacías el conteo (alguien registró un movimiento). "
+                              "Revisá los valores actualizados y volvé a guardar.", "warning")
+                        return redirect(url_for('inventario'))
+
+                    lugar = f"{NOMBRE_ESTADO[estado]} {color}" + (f" {calibre}" if estado == 'seleccionado' else '')
+                    detalle = (f"Conteo de inventario ({lugar}). De {cantidad_texto(original)} "
+                               f"a {cantidad_texto(contado)}. {nota}").strip()
+                    cursor.execute("""
+                        INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
+                        VALUES (?, 'Ajuste Stock', ?, ?, ?, ?, ?, ?)
+                    """, (usuario, color, calibre, contado // MAPLES_POR_CAJON, contado % MAPLES_POR_CAJON,
+                          contado - original, detalle))
+                conn.commit()
+            except sqlite3.Error as e:
+                conn.rollback()
+                flash(f"No se pudo guardar el conteo: {e}", "danger")
+                return redirect(url_for('inventario'))
+
+        flash(f"Conteo guardado: {len(cambios)} {'cambio registrado' if len(cambios) == 1 else 'cambios registrados'} en el historial.", "success")
+        return redirect(url_for('index'))
+
+    por_seleccionar, seleccionado, resumen = StockService.obtener_resumen_completo()
+    compartimentos = []
+    for i, (estado, color, calibre) in enumerate(COMPARTIMENTOS_STOCK):
+        info = por_seleccionar[color] if estado == 'por_seleccionar' else seleccionado[color][calibre]
+        compartimentos.append({'i': i, 'estado': estado, 'color': color, 'calibre': calibre, 'info': info})
+    return render_template('inventario.html', compartimentos=compartimentos, resumen=resumen)
 
 # ==============================================================================
 # ACTIVOS PWA & MANIFEST

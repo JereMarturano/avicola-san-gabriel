@@ -6,33 +6,54 @@
 {% block content %}
 <div class="space-y-5 pt-1">
 
-  <!-- RESUMEN SUPERIOR -->
-  <div class="grid grid-cols-2 gap-3">
-    <div class="rounded-2xl p-4 bg-gradient-to-br from-emerald-900/50 to-slate-900 ring-1 ring-emerald-700/40 shadow-lg shadow-black/20">
-      <div class="flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
-        <i class="fa-solid fa-box"></i>
-        <span>Seleccionado listo</span>
+  <!-- STOCK TOTAL -->
+  {% set total_maples = resumen.total_general.total_maples %}
+  {% set pct_hecho = ((resumen.total_seleccionado.total_maples / total_maples * 100)|round|int) if total_maples else 0 %}
+  <section class="rounded-2xl p-4 bg-gradient-to-br from-slate-800/80 to-slate-900 ring-1 ring-slate-700/60 shadow-lg shadow-black/20 space-y-3.5">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="text-xs font-semibold text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-egg"></i> Stock total</div>
+        <div class="mt-1.5">{{ cantidad(resumen.total_general, 'text-4xl') }}</div>
+        <div class="text-xs text-slate-400 tabular-nums mt-0.5">{{ total_maples }} maples</div>
       </div>
-      <div class="mt-2">{{ cantidad(resumen.total_seleccionado, 'text-3xl') }}</div>
-      <div class="mt-1 text-xs text-slate-300 tabular-nums">{{ resumen.total_seleccionado.total_maples }} maples</div>
+      {% if session.get('user_role') == 'Admin' %}
+      <a href="{{ url_for('inventario') }}" class="shrink-0 h-10 px-3.5 rounded-xl bg-slate-950/60 ring-1 ring-slate-700 hover:ring-emerald-500/60 text-sm font-semibold text-slate-100 flex items-center gap-2 transition-all active:scale-95">
+        <i class="fa-solid fa-clipboard-check text-emerald-400"></i> Conteo
+      </a>
+      {% endif %}
     </div>
 
-    <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-900/40 to-slate-900 ring-1 ring-amber-700/40 shadow-lg shadow-black/20">
-      <div class="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-        <i class="fa-solid fa-warehouse"></i>
-        <span>Por seleccionar</span>
-      </div>
-      <div class="mt-2">{{ cantidad(resumen.total_por_seleccionar, 'text-3xl') }}</div>
-      <div class="mt-1 text-xs text-slate-300 tabular-nums">{{ resumen.total_por_seleccionar.total_maples }} maples</div>
+    <!-- Proporción hecho / sin hacer -->
+    <div class="h-2.5 rounded-full overflow-hidden flex {{ 'bg-amber-500/80' if total_maples else 'bg-slate-700' }}" role="img" aria-label="{{ pct_hecho }}% hecho">
+      <div class="h-full bg-emerald-500" style="width: {{ pct_hecho }}%"></div>
     </div>
-  </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <div class="text-xs font-semibold text-emerald-300 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Hecho</div>
+        <div class="mt-1">{{ cantidad(resumen.total_seleccionado, 'text-xl') }}</div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-amber-300 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Sin hacer</div>
+        <div class="mt-1">{{ cantidad(resumen.total_por_seleccionar, 'text-xl') }}</div>
+      </div>
+    </div>
+
+    {% if not total_maples and session.get('user_role') == 'Admin' %}
+    <a href="{{ url_for('inventario') }}" class="flex items-center gap-3 rounded-xl p-3 bg-emerald-500/10 ring-1 ring-emerald-500/30 text-sm text-emerald-100 hover:bg-emerald-500/15">
+      <i class="fa-solid fa-clipboard-check text-emerald-400"></i>
+      <span class="flex-1">¿Ya tenés huevo en la granja? <b>Cargá el conteo inicial</b> de lo hecho y lo sin hacer.</span>
+      <i class="fa-solid fa-chevron-right text-xs text-emerald-400"></i>
+    </a>
+    {% endif %}
+  </section>
 
   <!-- ACCIONES RÁPIDAS -->
   <div class="grid grid-cols-3 gap-2.5">
     {% for tipo, icono, titulo, sub, estilo in [
-      ('ingreso_galpon', 'fa-cart-flatbed', 'Ingreso', 'Al galpón', 'text-emerald-400 bg-emerald-500/15'),
-      ('clasificacion', 'fa-layer-group', 'Clasificar', 'Embalar', 'text-sky-400 bg-sky-500/15'),
-      ('venta', 'fa-truck-fast', 'Despacho', 'A cliente', 'text-amber-400 bg-amber-500/15'),
+      ('ingreso_galpon', 'fa-cart-flatbed', 'Ingreso', 'Entra sin hacer', 'text-emerald-400 bg-emerald-500/15'),
+      ('clasificacion', 'fa-layer-group', 'Clasificar', 'Pasa a hecho', 'text-sky-400 bg-sky-500/15'),
+      ('venta', 'fa-truck-fast', 'Despacho', 'Sale lo hecho', 'text-amber-400 bg-amber-500/15'),
     ] %}
     <button onclick="abrirModalOperacion('{{ tipo }}')" class="bg-slate-900 ring-1 ring-slate-800 hover:ring-slate-600 active:scale-[0.97] rounded-2xl py-3.5 px-2 flex flex-col items-center text-center transition-all">
       <span class="w-11 h-11 rounded-xl flex items-center justify-center mb-2 {{ estilo }}">
@@ -44,9 +65,9 @@
     {% endfor %}
   </div>
 
-  <!-- SECCIÓN 1: POR SELECCIONAR (GALPÓN) -->
+  <!-- SECCIÓN 1: SIN HACER (GALPÓN) -->
   <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3.5">
-    {{ titulo_seccion('fa-wheat-awn', 'Por seleccionar', 'Huevo en galpón, sin clasificar', 'text-amber-400') }}
+    {{ titulo_seccion('fa-wheat-awn', 'Sin hacer', 'En galpón, falta clasificar', 'text-amber-400') }}
 
     <div class="grid grid-cols-2 gap-2.5">
       {% for color in ['Blanco', 'De Color'] %}
@@ -67,9 +88,9 @@
     </div>
   </section>
 
-  <!-- SECCIÓN 2: SELECCIONADO (LISTO PARA VENTA) -->
+  <!-- SECCIÓN 2: HECHO (LISTO PARA DESPACHAR) -->
   <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3.5">
-    {{ titulo_seccion('fa-boxes-stacked', 'Seleccionado', 'Clasificado y listo para la venta') }}
+    {{ titulo_seccion('fa-boxes-stacked', 'Hecho', 'Clasificado, listo para despachar') }}
 
     <div class="grid grid-cols-2 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800 text-sm font-semibold">
       <button onclick="mostrarSubtab('tab-blanco')" id="btn-tab-blanco" class="h-9 rounded-lg flex items-center justify-center gap-2 transition-all bg-slate-700 text-white shadow">
@@ -114,10 +135,10 @@
       <li class="py-3 first:pt-1 last:pb-0 flex items-center gap-3">
         {{ icono_movimiento(mov.tipo) }}
         <div class="min-w-0 flex-1">
-          <div class="text-sm font-semibold text-white truncate">{{ mov.tipo }}</div>
+          <div class="text-sm font-semibold text-white truncate">{{ mov.tipo|nombre_tipo }}</div>
           <div class="text-xs text-slate-400 flex items-center gap-1.5 min-w-0">
             {{ punto_color(mov.color) }}
-            <span class="truncate">{{ mov.color }}{% if mov.calibre and mov.calibre != 'Sin Clasificar' %} · {{ mov.calibre }}{% endif %} · {{ mov.fecha_hora|hora_local('%H:%M') }}</span>
+            <span class="truncate">{{ mov.color }} · {% if mov.calibre and mov.calibre != 'Sin Clasificar' %}{{ mov.calibre }}{% else %}sin hacer{% endif %} · {{ mov.fecha_hora|hora_local('%H:%M') }}</span>
           </div>
         </div>
         <div class="text-right shrink-0 tabular-nums">
