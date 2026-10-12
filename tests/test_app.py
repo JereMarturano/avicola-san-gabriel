@@ -105,7 +105,7 @@ class TestHistorialHoraArgentina(BaseTest):
         # 22:00 de hoy en Argentina = 01:00 UTC de mañana -> SÍ es de "hoy"
         hoy_noche_utc = ayer_noche_utc + timedelta(days=1)
         with db() as conn:
-            for fecha, nota in ((ayer_noche_utc, "MOV_AYER"), (hoy_noche_utc, "MOV_HOY")):
+            for fecha, nota in ((ayer_noche_utc, "Ingreso bruto galpón: Blanco. MOV_AYER"), (hoy_noche_utc, "Ingreso bruto galpón: Blanco. MOV_HOY")):
                 conn.execute("""
                     INSERT INTO movimientos (fecha_hora, usuario, tipo, color, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'test', 'Ingreso Galpón', 'Blanco', 0, 1, 1, ?)

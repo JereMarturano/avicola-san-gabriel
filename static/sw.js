@@ -1,4 +1,4 @@
-const CACHE_NAME = 'san-gabriel-v2';
+const CACHE_NAME = 'san-gabriel-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/static/manifest.json',

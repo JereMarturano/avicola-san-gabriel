@@ -1,0 +1,42 @@
+{# Componentes reutilizables de la interfaz #}
+
+{# Cantidad en formato de granja: "18 caj. + 10 map." con el número de cajones destacado #}
+{% macro cantidad(info, tam='text-2xl', color='text-white') %}
+<span class="tabular-nums inline-flex flex-wrap items-baseline gap-x-1.5">
+  <span class="whitespace-nowrap"><span class="{{ tam }} font-extrabold tracking-tight {{ color }}">{{ info.cajones_enteros }}</span><span class="text-sm font-semibold text-slate-300 ml-1">caj.</span></span>
+  {%- if info.maples_resto %}
+  <span class="whitespace-nowrap"><span class="text-base font-bold text-slate-100">+ {{ info.maples_resto }}</span><span class="text-sm font-semibold text-slate-300 ml-0.5">map.</span></span>
+  {%- endif %}
+</span>
+{% endmacro %}
+
+{# Encabezado de sección con ícono, título y subtítulo opcional #}
+{% macro titulo_seccion(icono, titulo, subtitulo='', color_icono='text-emerald-400') %}
+<div class="flex items-center gap-3 min-w-0">
+  <div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 {{ color_icono }}">
+    <i class="fa-solid {{ icono }}"></i>
+  </div>
+  <div class="min-w-0">
+    <h2 class="text-base font-bold text-white leading-tight truncate">{{ titulo }}</h2>
+    {% if subtitulo %}<p class="text-xs text-slate-400 truncate">{{ subtitulo }}</p>{% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{# Ícono y colores según el tipo de movimiento #}
+{% macro icono_movimiento(tipo, tam='w-10 h-10') %}
+{% set estilos = {
+  'Ingreso Galpón': ('fa-warehouse', 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30'),
+  'Clasificación': ('fa-arrow-right-arrow-left', 'bg-sky-500/15 text-sky-400 ring-sky-500/30'),
+  'Venta / Despacho': ('fa-truck', 'bg-amber-500/15 text-amber-400 ring-amber-500/30'),
+} %}
+{% set icono, clases = estilos.get(tipo, ('fa-sliders', 'bg-violet-500/15 text-violet-300 ring-violet-500/30')) %}
+<div class="{{ tam }} rounded-xl ring-1 flex items-center justify-center shrink-0 {{ clases }}">
+  <i class="fa-solid {{ icono }}"></i>
+</div>
+{% endmacro %}
+
+{# Punto de color del huevo #}
+{% macro punto_color(color) %}
+<span class="inline-block w-2.5 h-2.5 rounded-full shrink-0 {% if color == 'Blanco' %}bg-slate-100 ring-1 ring-slate-400{% else %}bg-amber-500 ring-1 ring-amber-300{% endif %}"></span>
+{% endmacro %}

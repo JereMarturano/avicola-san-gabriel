@@ -1,7 +1,7 @@
 import os
 import re
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -200,6 +200,38 @@ def hora_local(fecha_utc, formato='%d/%m %H:%M'):
         return fecha_utc
     return dt.strftime(formato)
 
+@app.template_filter('cant')
+def cantidad_texto(total_maples):
+    """Texto legible de una cantidad en maples: '18 caj. + 10 map.' (sin signo)."""
+    return StockService.formatear(abs(int(total_maples or 0)))['detalle_texto']
+
+@app.template_filter('dia_local')
+def dia_local(fecha_utc):
+    """Etiqueta del día (hora Argentina) para agrupar el historial: 'Hoy', 'Ayer' o 'Lun 12/10'."""
+    try:
+        dia = (datetime.strptime(str(fecha_utc)[:19], '%Y-%m-%d %H:%M:%S') - timedelta(hours=3)).date()
+    except ValueError:
+        return ''
+    hoy = (datetime.now(timezone.utc) - timedelta(hours=3)).date()
+    if dia == hoy:
+        return 'Hoy'
+    if dia == hoy - timedelta(days=1):
+        return 'Ayer'
+    return f"{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][dia.weekday()]} {dia.strftime('%d/%m')}"
+
+@app.template_filter('nota_usuario')
+def nota_usuario(detalle):
+    """
+    Extrae del 'detalle' guardado solo la parte útil para mostrar: la nota que escribió el usuario
+    (y en los ajustes, el 'De X a Y maples'). El resto repite datos que ya se ven en la tarjeta.
+    """
+    detalle = (detalle or '').strip()
+    if detalle.startswith('Venta/Despacho:'):
+        return detalle.split('Cliente/Nota:', 1)[1].strip() if 'Cliente/Nota:' in detalle else ''
+    if detalle.startswith('Ajuste inventario'):
+        return detalle.split('). ', 1)[1].strip() if '). ' in detalle else ''
+    return detalle.split('. ', 1)[1].strip() if '. ' in detalle else ''
+
 # Contexto global inyectado a las plantillas
 @app.context_processor
 def inject_stock():
@@ -321,7 +353,7 @@ def registrar_operacion():
                     INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'Ingreso Galpón', ?, 'Sin Clasificar', ?, ?, ?, ?)
                 """, (usuario, color, c_val, m_val, total_maples, detalle))
-                flash(f"✅ Ingreso registrado: {total_maples} maples ({color}) a 'Por Seleccionar'.", "success")
+                flash(f"Ingreso registrado: {cantidad_texto(total_maples)} de {color} a 'Por Seleccionar'.", "success")
                 
             elif tipo == 'clasificacion':
                 # Verificar stock disponible en galpón
@@ -333,7 +365,7 @@ def registrar_operacion():
                 disponible = disp_row['cantidad_maples'] if disp_row else 0
                 
                 if disponible < total_maples:
-                    flash(f"⚠️ Stock insuficiente en galpón. Hay {disponible} maples disponibles de {color}.", "danger")
+                    flash(f"Stock insuficiente en galpón: hay {cantidad_texto(disponible)} de {color}.", "danger")
                     return redirect(url_for('index'))
                     
                 # Descontar de galpón y sumar a seleccionado
@@ -354,7 +386,7 @@ def registrar_operacion():
                     INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'Clasificación', ?, ?, ?, ?, ?, ?)
                 """, (usuario, color, calibre, c_val, m_val, total_maples, detalle))
-                flash(f"✅ Clasificación lista: {total_maples} maples pasados a {color} {calibre}.", "success")
+                flash(f"Clasificación registrada: {cantidad_texto(total_maples)} pasados a {color} {calibre}.", "success")
                 
             elif tipo == 'venta':
                 cursor.execute("""
@@ -365,7 +397,7 @@ def registrar_operacion():
                 disponible = disp_row['cantidad_maples'] if disp_row else 0
                 
                 if disponible < total_maples:
-                    flash(f"⚠️ Stock insuficiente para venta. Solo hay {disponible} maples disponibles de {color} {calibre}.", "danger")
+                    flash(f"Stock insuficiente: solo hay {cantidad_texto(disponible)} de {color} {calibre}.", "danger")
                     return redirect(url_for('index'))
                     
                 cursor.execute("""
@@ -379,7 +411,7 @@ def registrar_operacion():
                     INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'Venta / Despacho', ?, ?, ?, ?, ?, ?)
                 """, (usuario, color, calibre, c_val, m_val, -total_maples, detalle))
-                flash(f"🚚 Despacho registrado: {total_maples} maples de {color} {calibre}.", "success")
+                flash(f"Despacho registrado: {cantidad_texto(total_maples)} de {color} {calibre}.", "success")
                 
             elif tipo == 'ajuste':
                 estado_ajuste = request.form.get('estado_ajuste', 'seleccionado')
@@ -408,7 +440,7 @@ def registrar_operacion():
                     INSERT INTO movimientos (usuario, tipo, color, calibre, cajones_input, maples_input, total_maples, detalle)
                     VALUES (?, 'Ajuste Stock', ?, ?, ?, ?, ?, ?)
                 """, (usuario, color, calibre_ajuste, c_val, m_val, diferencia, detalle))
-                flash(f"⚙️ Stock ajustado a {nuevo_total} maples.", "info")
+                flash(f"Stock ajustado a {cantidad_texto(nuevo_total)}.", "info")
 
             conn.commit()
         except sqlite3.Error as e:

@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Componentes reutilizados en los templates */
+@layer components {
+  .etiqueta-campo {
+    @apply block text-xs font-semibold uppercase tracking-wide text-slate-300 mb-2;
+  }
+  .campo-numero {
+    @apply w-full h-14 bg-slate-950 rounded-xl px-3 text-2xl font-extrabold text-white text-center tabular-nums
+           ring-1 ring-slate-700 border-0 focus:outline-none focus:ring-2 focus:ring-emerald-500;
+  }
+  .boton-rapido {
+    @apply h-11 rounded-lg bg-slate-800 ring-1 ring-slate-700 text-sm font-semibold text-slate-200
+           hover:bg-slate-700 active:scale-95 transition-all;
+  }
+  .boton-confirmar {
+    @apply w-full h-14 rounded-2xl text-white text-base font-bold flex items-center justify-center gap-2
+           shadow-lg shadow-black/30 active:scale-[0.98] transition-all;
+  }
+  .tab-operacion {
+    @apply h-14 rounded-lg flex flex-col items-center justify-center gap-1 text-sm font-semibold
+           text-slate-400 hover:text-white transition-all;
+  }
+  .tab-operacion-activa {
+    @apply text-white shadow;
+  }
+}
+
+/* Quitar flechas de los campos numéricos (se usan los botones rápidos) */
+@layer base {
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+}

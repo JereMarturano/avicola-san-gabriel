@@ -4,33 +4,33 @@
 
 {% block content %}
 <div class="min-h-[75vh] flex flex-col justify-center items-center py-6">
-  <div class="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur-md">
+  <div class="w-full max-w-sm bg-slate-900 ring-1 ring-slate-800 rounded-3xl p-6 shadow-2xl shadow-black/40">
     
     <!-- Logo e Identidad -->
     <div class="text-center mb-6">
       <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 mx-auto flex items-center justify-center shadow-xl shadow-emerald-900/40 mb-3">
         <i class="fa-solid fa-egg text-white text-3xl"></i>
       </div>
-      <h2 class="text-xl font-extrabold text-white">Ingreso al Sistema</h2>
-      <p class="text-xs text-slate-400 mt-1">Control diario de galpón y stock</p>
+      <h2 class="text-xl font-extrabold text-white">Iniciar sesión</h2>
+      <p class="text-sm text-slate-400 mt-1">Control diario de galpón y stock</p>
     </div>
 
     <!-- Formulario de Login Móvil -->
     <form action="{{ url_for('login') }}" method="POST" class="space-y-4">
       <div>
-        <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Usuario</label>
+        <label for="username" class="block text-sm font-semibold text-slate-200 mb-1.5">Usuario</label>
         <div class="relative">
           <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
             <i class="fa-solid fa-user text-sm"></i>
           </span>
           <input type="text" id="username" name="username" required autocomplete="username" autofocus
-            placeholder="Ej: admin"
+            placeholder="Tu usuario" autocapitalize="none" autocorrect="off"
             class="w-full pl-10 pr-3 py-3.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-medium placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-base">
         </div>
       </div>
 
       <div>
-        <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Contraseña</label>
+        <label for="password" class="block text-sm font-semibold text-slate-200 mb-1.5">Contraseña</label>
         <div class="relative">
           <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
             <i class="fa-solid fa-lock text-sm"></i>

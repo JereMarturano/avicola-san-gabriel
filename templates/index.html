@@ -1,284 +1,144 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cantidad, titulo_seccion, icono_movimiento, punto_color %}
 
-{% block title %}Dashboard Stock - Avícola San Gabriel{% endblock %}
+{% block title %}Stock - Avícola San Gabriel{% endblock %}
 
 {% block content %}
-<div class="space-y-4 pt-2">
+<div class="space-y-5 pt-1">
 
-  <!-- TARJETAS DE RESUMEN SUPERIOR (KPIs Móviles) -->
-  <div class="grid grid-cols-2 gap-2.5">
-    
-    <!-- KPI 1: Seleccionado (Listo para Venta) -->
-    <div class="bg-gradient-to-br from-emerald-950/70 to-slate-900 border border-emerald-800/40 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
-      <div class="absolute -right-2 -bottom-2 text-emerald-900/30 text-5xl pointer-events-none">
-        <i class="fa-solid fa-boxes-packing"></i>
+  <!-- RESUMEN SUPERIOR -->
+  <div class="grid grid-cols-2 gap-3">
+    <div class="rounded-2xl p-4 bg-gradient-to-br from-emerald-900/50 to-slate-900 ring-1 ring-emerald-700/40 shadow-lg shadow-black/20">
+      <div class="flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
+        <i class="fa-solid fa-box"></i>
+        <span>Seleccionado listo</span>
       </div>
-      <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1 flex items-center">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-        Seleccionado Listo
-      </div>
-      <div class="text-xl font-extrabold text-white tracking-tight">
-        {{ resumen.total_seleccionado.cajones_decimal }} <span class="text-xs font-semibold text-emerald-300">Caj.</span>
-      </div>
-      <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-        <span>{{ resumen.total_seleccionado.total_maples }} Maples</span>
-        <span class="text-[10px] text-slate-500 font-medium">({{ resumen.total_seleccionado.detalle_texto }})</span>
-      </div>
+      <div class="mt-2">{{ cantidad(resumen.total_seleccionado, 'text-3xl') }}</div>
+      <div class="mt-1 text-xs text-slate-300 tabular-nums">{{ resumen.total_seleccionado.total_maples }} maples</div>
     </div>
 
-    <!-- KPI 2: Por Seleccionar (En Galpón) -->
-    <div class="bg-gradient-to-br from-amber-950/70 to-slate-900 border border-amber-800/40 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
-      <div class="absolute -right-2 -bottom-2 text-amber-900/30 text-5xl pointer-events-none">
+    <div class="rounded-2xl p-4 bg-gradient-to-br from-amber-900/40 to-slate-900 ring-1 ring-amber-700/40 shadow-lg shadow-black/20">
+      <div class="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
         <i class="fa-solid fa-warehouse"></i>
+        <span>Por seleccionar</span>
       </div>
-      <div class="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1 flex items-center">
-        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse"></span>
-        Por Seleccionar
-      </div>
-      <div class="text-xl font-extrabold text-white tracking-tight">
-        {{ resumen.total_por_seleccionar.cajones_decimal }} <span class="text-xs font-semibold text-amber-300">Caj.</span>
-      </div>
-      <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
-        <span>{{ resumen.total_por_seleccionar.total_maples }} Maples</span>
-        <span class="text-[10px] text-slate-500 font-medium">({{ resumen.total_por_seleccionar.detalle_texto }})</span>
-      </div>
+      <div class="mt-2">{{ cantidad(resumen.total_por_seleccionar, 'text-3xl') }}</div>
+      <div class="mt-1 text-xs text-slate-300 tabular-nums">{{ resumen.total_por_seleccionar.total_maples }} maples</div>
     </div>
-
   </div>
 
-  <!-- BOTONES DE ACCIÓN RÁPIDA ERGONÓMICOS -->
-  <div class="grid grid-cols-3 gap-2">
-    <button onclick="abrirModalOperacion('ingreso_galpon')" class="bg-slate-900 border border-emerald-800/50 hover:bg-emerald-950/40 active:scale-95 p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow transition-all group">
-      <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-        <i class="fa-solid fa-cart-flatbed text-base"></i>
-      </div>
-      <span class="text-xs font-bold text-slate-200 leading-tight">+ Ingreso</span>
-      <span class="text-[9px] text-slate-400">De Galpón</span>
-    </button>
-
-    <button onclick="abrirModalOperacion('clasificacion')" class="bg-slate-900 border border-sky-800/50 hover:bg-sky-950/40 active:scale-95 p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow transition-all group">
-      <div class="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-        <i class="fa-solid fa-layer-group text-base"></i>
-      </div>
-      <span class="text-xs font-bold text-slate-200 leading-tight">Clasificar</span>
-      <span class="text-[9px] text-slate-400">Embalar en cajón</span>
-    </button>
-
-    <button onclick="abrirModalOperacion('venta')" class="bg-slate-900 border border-amber-800/50 hover:bg-amber-950/40 active:scale-95 p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow transition-all group">
-      <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-        <i class="fa-solid fa-truck-moving text-base"></i>
-      </div>
-      <span class="text-xs font-bold text-slate-200 leading-tight">Despacho</span>
-      <span class="text-[9px] text-slate-400">Venta cliente</span>
-    </button>
-  </div>
-
-  <!-- SECCIÓN 1: HUEVO POR SELECCIONAR (GALPÓN) -->
-  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md">
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex items-center space-x-2">
-        <i class="fa-solid fa-wheat-awn text-amber-400 text-sm"></i>
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">1. Por Seleccionar (Galpón)</h3>
-      </div>
-      <span class="text-[11px] text-sky-400 bg-sky-950/80 border border-sky-800/60 px-2.5 py-0.5 rounded-full font-bold">
-        Te quedan {{ resumen.total_por_seleccionar.cajones_decimal }} caj. por clasificar
+  <!-- ACCIONES RÁPIDAS -->
+  <div class="grid grid-cols-3 gap-2.5">
+    {% for tipo, icono, titulo, sub, estilo in [
+      ('ingreso_galpon', 'fa-cart-flatbed', 'Ingreso', 'Al galpón', 'text-emerald-400 bg-emerald-500/15'),
+      ('clasificacion', 'fa-layer-group', 'Clasificar', 'Embalar', 'text-sky-400 bg-sky-500/15'),
+      ('venta', 'fa-truck-fast', 'Despacho', 'A cliente', 'text-amber-400 bg-amber-500/15'),
+    ] %}
+    <button onclick="abrirModalOperacion('{{ tipo }}')" class="bg-slate-900 ring-1 ring-slate-800 hover:ring-slate-600 active:scale-[0.97] rounded-2xl py-3.5 px-2 flex flex-col items-center text-center transition-all">
+      <span class="w-11 h-11 rounded-xl flex items-center justify-center mb-2 {{ estilo }}">
+        <i class="fa-solid {{ icono }} text-lg"></i>
       </span>
-    </div>
+      <span class="text-sm font-bold text-white leading-tight">{{ titulo }}</span>
+      <span class="text-xs text-slate-400">{{ sub }}</span>
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- SECCIÓN 1: POR SELECCIONAR (GALPÓN) -->
+  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3.5">
+    {{ titulo_seccion('fa-wheat-awn', 'Por seleccionar', 'Huevo en galpón, sin clasificar', 'text-amber-400') }}
 
     <div class="grid grid-cols-2 gap-2.5">
-      <!-- Blanco Galpón -->
-      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="inline-flex items-center space-x-1 text-xs font-bold text-slate-200">
-              <span class="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-400 inline-block"></span>
-              <span>Blanco</span>
-            </span>
-            <span class="text-[9px] px-1.5 py-0.2 rounded bg-sky-950 text-sky-400 font-semibold border border-sky-800/40">Sin clasificar</span>
-          </div>
-          <div class="text-lg font-extrabold text-white">
-            {{ por_seleccionar['Blanco'].cajones_decimal }} <span class="text-xs font-normal text-slate-400">caj.</span>
-          </div>
-          <div class="text-[11px] text-sky-400 font-semibold">
-            Te quedan {{ por_seleccionar['Blanco'].total_maples }} maples
-          </div>
-          <div class="text-[10px] text-slate-500">
-            ({{ por_seleccionar['Blanco'].detalle_texto }})
-          </div>
+      {% for color in ['Blanco', 'De Color'] %}
+      {% set item = por_seleccionar[color] %}
+      <div class="bg-slate-950/70 ring-1 ring-slate-800 rounded-xl p-3.5 flex flex-col">
+        <div class="flex items-center gap-2 text-sm font-semibold {% if color == 'Blanco' %}text-slate-100{% else %}text-amber-200{% endif %}">
+          {{ punto_color(color) }}<span>{{ color }}</span>
         </div>
-        <button onclick="prepararClasificacion('Blanco')" class="mt-2.5 w-full py-1.5 bg-sky-900/40 hover:bg-sky-800/60 active:scale-95 text-sky-200 text-[11px] font-bold rounded-lg border border-sky-700/60 flex items-center justify-center space-x-1.5 transition-all">
-          <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i>
-          <span>Clasificar lote</span>
+        <div class="mt-2">{{ cantidad(item) }}</div>
+        <div class="text-xs text-slate-400 tabular-nums mt-0.5">{{ item.total_maples }} maples</div>
+        <button onclick="prepararClasificacion('{{ color }}')" {% if not item.total_maples %}disabled{% endif %}
+          class="mt-3 h-10 w-full rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/40 hover:bg-sky-500/25">
+          <i class="fa-solid fa-arrow-right-arrow-left text-xs"></i>
+          <span>Clasificar</span>
         </button>
       </div>
+      {% endfor %}
+    </div>
+  </section>
 
-      <!-- De Color Galpón -->
-      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="inline-flex items-center space-x-1 text-xs font-bold text-amber-200">
-              <span class="w-2.5 h-2.5 rounded-full bg-amber-600 border border-amber-400 inline-block"></span>
-              <span>De Color</span>
-            </span>
-            <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 font-semibold border border-amber-800/40">Sin clasificar</span>
-          </div>
-          <div class="text-lg font-extrabold text-white">
-            {{ por_seleccionar['De Color'].cajones_decimal }} <span class="text-xs font-normal text-slate-400">caj.</span>
-          </div>
-          <div class="text-[11px] text-amber-400 font-semibold">
-            Te quedan {{ por_seleccionar['De Color'].total_maples }} maples
-          </div>
-          <div class="text-[10px] text-slate-500">
-            ({{ por_seleccionar['De Color'].detalle_texto }})
-          </div>
-        </div>
-        <button onclick="prepararClasificacion('De Color')" class="mt-2.5 w-full py-1.5 bg-amber-900/40 hover:bg-amber-800/60 active:scale-95 text-amber-200 text-[11px] font-bold rounded-lg border border-amber-700/60 flex items-center justify-center space-x-1.5 transition-all">
-          <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i>
-          <span>Clasificar lote</span>
+  <!-- SECCIÓN 2: SELECCIONADO (LISTO PARA VENTA) -->
+  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3.5">
+    {{ titulo_seccion('fa-boxes-stacked', 'Seleccionado', 'Clasificado y listo para la venta') }}
+
+    <div class="grid grid-cols-2 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800 text-sm font-semibold">
+      <button onclick="mostrarSubtab('tab-blanco')" id="btn-tab-blanco" class="h-9 rounded-lg flex items-center justify-center gap-2 transition-all bg-slate-700 text-white shadow">
+        {{ punto_color('Blanco') }} Blancos
+      </button>
+      <button onclick="mostrarSubtab('tab-color')" id="btn-tab-color" class="h-9 rounded-lg flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-white">
+        {{ punto_color('De Color') }} De color
+      </button>
+    </div>
+
+    {% for color, tab_id in [('Blanco', 'tab-blanco'), ('De Color', 'tab-color')] %}
+    <div id="{{ tab_id }}" class="grid grid-cols-2 md:grid-cols-4 gap-2.5 {% if not loop.first %}hidden{% endif %}">
+      {% for calibre in ['Chico', 'Mediano', 'Grande', 'Especial'] %}
+      {% set item = seleccionado[color][calibre] %}
+      <div class="bg-slate-950/70 ring-1 ring-slate-800 rounded-xl p-3.5 flex flex-col {% if not item.total_maples %}opacity-60{% endif %}">
+        <div class="text-sm font-semibold {% if color == 'Blanco' %}text-slate-100{% else %}text-amber-200{% endif %}">{{ calibre }}</div>
+        <div class="mt-2">{{ cantidad(item, 'text-2xl', 'text-white' if item.total_maples else 'text-slate-400') }}</div>
+        <div class="text-xs text-slate-400 tabular-nums mt-0.5">{{ item.total_maples }} maples</div>
+        <button onclick="prepararVenta('{{ color }}', '{{ calibre }}')" {% if not item.total_maples %}disabled{% endif %}
+          class="mt-3 h-10 w-full rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none bg-slate-800 text-slate-200 ring-1 ring-slate-700 hover:bg-amber-500/15 hover:text-amber-200 hover:ring-amber-500/40">
+          <i class="fa-solid fa-truck-fast text-xs"></i>
+          <span>Despachar</span>
         </button>
       </div>
+      {% endfor %}
     </div>
-  </div>
+    {% endfor %}
+  </section>
 
-  <!-- SECCIÓN 2: PRODUCTO TERMINADO (HUEVO SELECCIONADO EN CAJONES) -->
-  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md space-y-4">
-    
-    <div class="flex items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <i class="fa-solid fa-boxes-stacked text-emerald-400 text-sm"></i>
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">2. Huevo Seleccionado (Venta)</h3>
-      </div>
-      <!-- Selector de pestaña Color / Blanco -->
-      <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
-        <button onclick="mostrarSubtab('tab-blanco')" id="btn-tab-blanco" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white font-bold transition-all">
-          Blancos
-        </button>
-        <button onclick="mostrarSubtab('tab-color')" id="btn-tab-color" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">
-          De Color
-        </button>
-      </div>
-    </div>
-
-    <!-- TARJETAS HUEVO BLANCO -->
-    <div id="tab-blanco" class="space-y-2">
-      <div class="grid grid-cols-2 gap-2">
-        {% for calibre in ['Chico', 'Mediano', 'Grande', 'Especial'] %}
-        {% set item = seleccionado['Blanco'][calibre] %}
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 relative hover:border-slate-700 transition-all flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-slate-200">{{ calibre }}</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">Blanco</span>
-            </div>
-            <div class="text-lg font-black text-white">
-              {{ item.cajones_decimal }} <span class="text-[11px] font-normal text-slate-400">Caj.</span>
-            </div>
-            <div class="text-[11px] text-emerald-400 font-medium">
-              {{ item.total_maples }} Maples
-            </div>
-            <div class="text-[10px] text-slate-500">
-              ({{ item.detalle_texto }})
-            </div>
-          </div>
-          
-          <button onclick="prepararVenta('Blanco', '{{ calibre }}')" class="mt-2.5 w-full py-1.5 bg-slate-800 hover:bg-emerald-950 hover:text-emerald-300 hover:border-emerald-700/60 active:scale-95 text-slate-300 text-[11px] font-bold rounded-lg border border-slate-700 transition-all flex items-center justify-center space-x-1">
-            <i class="fa-solid fa-cart-arrow-down text-[10px]"></i>
-            <span>Despachar</span>
-          </button>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <!-- TARJETAS HUEVO DE COLOR -->
-    <div id="tab-color" class="space-y-2 hidden">
-      <div class="grid grid-cols-2 gap-2">
-        {% for calibre in ['Chico', 'Mediano', 'Grande', 'Especial'] %}
-        {% set item = seleccionado['De Color'][calibre] %}
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 relative hover:border-slate-700 transition-all flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-amber-200">{{ calibre }}</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-400 border border-amber-900/40">Color</span>
-            </div>
-            <div class="text-lg font-black text-white">
-              {{ item.cajones_decimal }} <span class="text-[11px] font-normal text-slate-400">Caj.</span>
-            </div>
-            <div class="text-[11px] text-amber-400 font-medium">
-              {{ item.total_maples }} Maples
-            </div>
-            <div class="text-[10px] text-slate-500">
-              ({{ item.detalle_texto }})
-            </div>
-          </div>
-
-          <button onclick="prepararVenta('De Color', '{{ calibre }}')" class="mt-2.5 w-full py-1.5 bg-slate-800 hover:bg-amber-950 hover:text-amber-300 hover:border-amber-700/60 active:scale-95 text-slate-300 text-[11px] font-bold rounded-lg border border-slate-700 transition-all flex items-center justify-center space-x-1">
-            <i class="fa-solid fa-cart-arrow-down text-[10px]"></i>
-            <span>Despachar</span>
-          </button>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-
-  </div>
-
-  <!-- VISTA PREVIA RÁPIDA DE ÚLTIMOS MOVIMIENTOS -->
-  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
-        <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
-        <span>Últimas Operaciones</span>
-      </h3>
-      <a href="{{ url_for('historial') }}" class="text-[11px] font-bold text-emerald-400 hover:underline flex items-center space-x-1">
-        <span>Ver todas</span>
-        <i class="fa-solid fa-chevron-right text-[9px]"></i>
+  <!-- ÚLTIMAS OPERACIONES -->
+  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      {{ titulo_seccion('fa-clock-rotate-left', 'Últimas operaciones', '', 'text-slate-300') }}
+      <a href="{{ url_for('historial') }}" class="shrink-0 h-9 px-3 rounded-lg text-sm font-semibold text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-1.5">
+        Ver todo <i class="fa-solid fa-chevron-right text-xs"></i>
       </a>
     </div>
 
     {% if ultimos_movimientos %}
-      <div class="space-y-2">
-        {% for mov in ultimos_movimientos %}
-        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
-          <div class="flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold {% if mov.tipo == 'Ingreso Galpón' %}bg-emerald-500/20 text-emerald-400{% elif mov.tipo == 'Clasificación' %}bg-sky-500/20 text-sky-400{% elif mov.tipo == 'Venta / Despacho' %}bg-amber-500/20 text-amber-400{% else %}bg-purple-500/20 text-purple-400{% endif %}">
-              {% if mov.tipo == 'Ingreso Galpón' %}
-                <i class="fa-solid fa-warehouse"></i>
-              {% elif mov.tipo == 'Clasificación' %}
-                <i class="fa-solid fa-arrow-right-arrow-left"></i>
-              {% elif mov.tipo == 'Venta / Despacho' %}
-                <i class="fa-solid fa-truck"></i>
-              {% else %}
-                <i class="fa-solid fa-sliders"></i>
-              {% endif %}
-            </div>
-            <div>
-              <div class="font-bold text-slate-200">
-                {{ mov.tipo }} • <span class="text-slate-400">{{ mov.color }}{% if mov.calibre and mov.calibre != 'Sin Clasificar' %} ({{ mov.calibre }}){% endif %}</span>
-              </div>
-              <div class="text-[10px] text-slate-500">
-                {{ mov.fecha_hora|hora_local('%H:%M') }} hs • Por {{ mov.usuario }}
-              </div>
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="font-extrabold {% if mov.total_maples > 0 %}text-emerald-400{% else %}text-amber-400{% endif %}">
-              {% if mov.total_maples > 0 %}+{% endif %}{{ mov.total_maples }} <span class="text-[10px] font-normal text-slate-400">map.</span>
-            </div>
-            <div class="text-[10px] text-slate-500">
-              ({{ mov.cajones_input }} caj. {{ mov.maples_input }} map.)
-            </div>
+    <ul class="divide-y divide-slate-800">
+      {% for mov in ultimos_movimientos %}
+      <li class="py-3 first:pt-1 last:pb-0 flex items-center gap-3">
+        {{ icono_movimiento(mov.tipo) }}
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-semibold text-white truncate">{{ mov.tipo }}</div>
+          <div class="text-xs text-slate-400 flex items-center gap-1.5 min-w-0">
+            {{ punto_color(mov.color) }}
+            <span class="truncate">{{ mov.color }}{% if mov.calibre and mov.calibre != 'Sin Clasificar' %} · {{ mov.calibre }}{% endif %} · {{ mov.fecha_hora|hora_local('%H:%M') }}</span>
           </div>
         </div>
-        {% endfor %}
-      </div>
+        <div class="text-right shrink-0 tabular-nums">
+          <div class="text-sm font-bold {% if mov.total_maples > 0 %}text-emerald-400{% elif mov.total_maples < 0 %}text-amber-400{% else %}text-slate-300{% endif %}">
+            {% if mov.total_maples > 0 %}+{% elif mov.total_maples < 0 %}−{% endif %}{{ mov.total_maples|cant }}
+          </div>
+          <div class="text-xs text-slate-500">{{ mov.total_maples|abs }} maples</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
     {% else %}
-      <div class="text-center py-6 text-slate-500 text-xs">
-        <i class="fa-solid fa-folder-open text-2xl mb-1 text-slate-600 block"></i>
-        Sin movimientos registrados hoy. Toca (+) para comenzar.
+    <div class="text-center py-8">
+      <div class="w-12 h-12 rounded-2xl bg-slate-800 mx-auto flex items-center justify-center text-slate-400 mb-3">
+        <i class="fa-solid fa-inbox text-lg"></i>
       </div>
+      <p class="text-sm font-semibold text-slate-200">Todavía no hay movimientos</p>
+      <p class="text-xs text-slate-400 mt-1">Tocá el botón <b class="text-emerald-400">+</b> para registrar el primero.</p>
+    </div>
     {% endif %}
-  </div>
+  </section>
 
 </div>
 {% endblock %}
@@ -286,45 +146,32 @@
 {% block scripts %}
 <script>
   function mostrarSubtab(id) {
-    const tabBlanco = document.getElementById('tab-blanco');
-    const tabColor = document.getElementById('tab-color');
-    const btnBlanco = document.getElementById('btn-tab-blanco');
-    const btnColor = document.getElementById('btn-tab-color');
+    const activo = "h-9 rounded-lg flex items-center justify-center gap-2 transition-all bg-slate-700 text-white shadow";
+    const inactivo = "h-9 rounded-lg flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-white";
+    const esBlanco = id === 'tab-blanco';
+    document.getElementById('tab-blanco').classList.toggle('hidden', !esBlanco);
+    document.getElementById('tab-color').classList.toggle('hidden', esBlanco);
+    document.getElementById('btn-tab-blanco').className = esBlanco ? activo : inactivo;
+    document.getElementById('btn-tab-color').className = esBlanco ? inactivo : activo;
+  }
 
-    if (id === 'tab-blanco') {
-      tabBlanco.classList.remove('hidden');
-      tabColor.classList.add('hidden');
-      btnBlanco.className = "px-2.5 py-1 rounded-lg bg-slate-700 text-white font-bold transition-all";
-      btnColor.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all";
-    } else {
-      tabBlanco.classList.add('hidden');
-      tabColor.classList.remove('hidden');
-      btnColor.className = "px-2.5 py-1 rounded-lg bg-amber-800 text-amber-100 font-bold transition-all";
-      btnBlanco.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all";
+  function seleccionarRadio(nombre, valor) {
+    for (const r of document.getElementsByName(nombre)) {
+      if (r.value === valor) r.checked = true;
     }
   }
 
   function prepararClasificacion(color) {
     abrirModalOperacion('clasificacion');
-    // Seleccionar color
-    const radiosColor = document.getElementsByName('color');
-    for (let r of radiosColor) {
-      if (r.value === color) r.checked = true;
-    }
+    seleccionarRadio('color', color);
+    actualizarEstadoGalpon();
   }
 
   function prepararVenta(color, calibre) {
     abrirModalOperacion('venta');
-    // Seleccionar color
-    const radiosColor = document.getElementsByName('color');
-    for (let r of radiosColor) {
-      if (r.value === color) r.checked = true;
-    }
-    // Seleccionar calibre
-    const radiosCalibre = document.getElementsByName('calibre');
-    for (let r of radiosCalibre) {
-      if (r.value === calibre) r.checked = true;
-    }
+    seleccionarRadio('color', color);
+    seleccionarRadio('calibre', calibre);
+    calcularPreview();
   }
 </script>
 {% endblock %}

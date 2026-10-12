@@ -1,132 +1,100 @@
 {% extends "base.html" %}
+{% from "_macros.html" import titulo_seccion, icono_movimiento, punto_color %}
 
-{% block title %}Historial de Movimientos - Avícola San Gabriel{% endblock %}
+{% block title %}Historial - Avícola San Gabriel{% endblock %}
 
 {% block content %}
-<div class="space-y-4 pt-2">
+<div class="space-y-4 pt-1">
 
-  <!-- ENCABEZADO Y FILTROS RÁPIDOS -->
-  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md space-y-3">
-    <div class="flex items-center justify-between">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center space-x-2">
-        <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i>
-        <span>Historial de Movimientos</span>
-      </h2>
-      <span class="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-medium">
-        {{ movimientos|length }} registros
+  <!-- ENCABEZADO Y FILTROS -->
+  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3.5">
+    <div class="flex items-center justify-between gap-3">
+      {{ titulo_seccion('fa-clock-rotate-left', 'Historial', 'Movimientos registrados') }}
+      <span class="shrink-0 text-xs font-semibold bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full tabular-nums">
+        {{ movimientos|length }} {{ 'registro' if movimientos|length == 1 else 'registros' }}
       </span>
     </div>
 
-    <!-- Pestañas de Período Rápido -->
-    <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-center text-xs font-semibold">
-      <a href="{{ url_for('historial', filtro='hoy', tipo=tipo_filtro) }}"
-        class="py-2 rounded-lg transition-all {% if filtro == 'hoy' %}bg-emerald-600 text-white font-bold shadow{% else %}text-slate-400 hover:text-white{% endif %}">
-        Hoy
+    <!-- Período -->
+    <div class="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800 text-sm font-semibold text-center">
+      {% for valor, texto in [('hoy', 'Hoy'), ('semana', '7 días'), ('todo', 'Todo')] %}
+      <a href="{{ url_for('historial', filtro=valor, tipo=tipo_filtro) }}"
+        class="h-9 rounded-lg flex items-center justify-center transition-all {% if filtro == valor %}bg-emerald-600 text-white shadow{% else %}text-slate-400 hover:text-white{% endif %}">
+        {{ texto }}
       </a>
-      <a href="{{ url_for('historial', filtro='semana', tipo=tipo_filtro) }}"
-        class="py-2 rounded-lg transition-all {% if filtro == 'semana' %}bg-emerald-600 text-white font-bold shadow{% else %}text-slate-400 hover:text-white{% endif %}">
-        Últimos 7 días
-      </a>
-      <a href="{{ url_for('historial', filtro='todo', tipo=tipo_filtro) }}"
-        class="py-2 rounded-lg transition-all {% if filtro == 'todo' %}bg-emerald-600 text-white font-bold shadow{% else %}text-slate-400 hover:text-white{% endif %}">
-        Todos
-      </a>
+      {% endfor %}
     </div>
 
-    <!-- Filtro por Tipo de Operación -->
-    <div class="flex items-center space-x-2 pt-1 overflow-x-auto pb-1 text-xs">
-      <span class="text-slate-500 text-[11px] whitespace-nowrap"><i class="fa-solid fa-filter mr-1"></i>Tipo:</span>
-      <a href="{{ url_for('historial', filtro=filtro, tipo='') }}"
-        class="px-2.5 py-1 rounded-full whitespace-nowrap {% if not tipo_filtro %}bg-slate-700 text-white font-bold{% else %}bg-slate-800 text-slate-400 hover:text-white{% endif %}">
-        Todos
+    <!-- Tipo de operación -->
+    <div class="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5 text-sm [scrollbar-width:none]">
+      {% for valor, texto, activo in [
+        ('', 'Todos', 'bg-slate-200 text-slate-900'),
+        ('Ingreso Galpón', 'Ingresos', 'bg-emerald-600 text-white'),
+        ('Clasificación', 'Clasificación', 'bg-sky-600 text-white'),
+        ('Venta / Despacho', 'Despachos', 'bg-amber-600 text-white'),
+        ('Ajuste Stock', 'Ajustes', 'bg-violet-600 text-white'),
+      ] %}
+      <a href="{{ url_for('historial', filtro=filtro, tipo=valor) }}"
+        class="shrink-0 h-9 px-3.5 rounded-full flex items-center font-semibold whitespace-nowrap transition-all {% if tipo_filtro == valor %}{{ activo }}{% else %}bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+        {{ texto }}
       </a>
-      <a href="{{ url_for('historial', filtro=filtro, tipo='Ingreso Galpón') }}"
-        class="px-2.5 py-1 rounded-full whitespace-nowrap {% if tipo_filtro == 'Ingreso Galpón' %}bg-emerald-700 text-white font-bold{% else %}bg-slate-800 text-slate-400 hover:text-white{% endif %}">
-        Ingresos
-      </a>
-      <a href="{{ url_for('historial', filtro=filtro, tipo='Clasificación') }}"
-        class="px-2.5 py-1 rounded-full whitespace-nowrap {% if tipo_filtro == 'Clasificación' %}bg-sky-700 text-white font-bold{% else %}bg-slate-800 text-slate-400 hover:text-white{% endif %}">
-        Clasificación
-      </a>
-      <a href="{{ url_for('historial', filtro=filtro, tipo='Venta / Despacho') }}"
-        class="px-2.5 py-1 rounded-full whitespace-nowrap {% if tipo_filtro == 'Venta / Despacho' %}bg-amber-700 text-white font-bold{% else %}bg-slate-800 text-slate-400 hover:text-white{% endif %}">
-        Despachos
-      </a>
+      {% endfor %}
     </div>
-  </div>
+  </section>
 
-  <!-- LISTA DE MOVIMIENTOS EN TARJETAS MÓVILES -->
-  <div class="space-y-2.5">
-    {% if movimientos %}
-      {% for mov in movimientos %}
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-md hover:border-slate-700 transition-all">
-        <div class="flex items-start justify-between">
-          
-          <div class="flex items-center space-x-3">
-            <!-- Icono tipo operación -->
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 {% if mov.tipo == 'Ingreso Galpón' %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/30{% elif mov.tipo == 'Clasificación' %}bg-sky-500/20 text-sky-400 border border-sky-500/30{% elif mov.tipo == 'Venta / Despacho' %}bg-amber-500/20 text-amber-400 border border-amber-500/30{% else %}bg-purple-500/20 text-purple-400 border border-purple-500/30{% endif %}">
-              {% if mov.tipo == 'Ingreso Galpón' %}
-                <i class="fa-solid fa-warehouse"></i>
-              {% elif mov.tipo == 'Clasificación' %}
-                <i class="fa-solid fa-arrow-right-arrow-left"></i>
-              {% elif mov.tipo == 'Venta / Despacho' %}
-                <i class="fa-solid fa-truck"></i>
-              {% else %}
-                <i class="fa-solid fa-sliders"></i>
-              {% endif %}
+  <!-- LISTA AGRUPADA POR DÍA -->
+  {% if movimientos %}
+  <div class="space-y-2">
+    {% for mov in movimientos %}
+    {% if loop.changed(mov.fecha_hora|dia_local) %}
+    <h3 class="pt-3 first:pt-0 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">{{ mov.fecha_hora|dia_local }}</h3>
+    {% endif %}
+    <article class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-3.5">
+      <div class="flex items-start gap-3">
+        {{ icono_movimiento(mov.tipo) }}
+
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm font-bold text-white truncate">{{ mov.tipo }}</div>
+              <div class="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
+                {{ punto_color(mov.color) }}
+                <span class="truncate">{{ mov.color }}{% if mov.calibre and mov.calibre != 'Sin Clasificar' %} · <span class="text-emerald-300 font-semibold">{{ mov.calibre }}</span>{% endif %}</span>
+              </div>
             </div>
-
-            <div>
-              <div class="text-sm font-bold text-white flex items-center space-x-1.5">
-                <span>{{ mov.tipo }}</span>
+            <div class="text-right shrink-0 tabular-nums">
+              <div class="text-sm font-bold whitespace-nowrap {% if mov.total_maples > 0 %}text-emerald-400{% elif mov.total_maples < 0 %}text-amber-400{% else %}text-slate-300{% endif %}">
+                {% if mov.total_maples > 0 %}+{% elif mov.total_maples < 0 %}−{% endif %}{{ mov.total_maples|cant }}
               </div>
-              <div class="text-xs text-slate-300 font-medium mt-0.5">
-                <span class="inline-block w-2 h-2 rounded-full mr-1 {% if mov.color == 'Blanco' %}bg-slate-200 border border-slate-400{% else %}bg-amber-600 border border-amber-400{% endif %}"></span>
-                {{ mov.color }} 
-                {% if mov.calibre and mov.calibre != 'Sin Clasificar' %}
-                  • <span class="text-emerald-400 font-semibold">{{ mov.calibre }}</span>
-                {% endif %}
-              </div>
+              <div class="text-xs text-slate-500">{{ mov.total_maples|abs }} maples</div>
             </div>
           </div>
 
-          <!-- Total en Cajones y Maples -->
-          <div class="text-right">
-            <div class="text-base font-black {% if mov.total_maples > 0 %}text-emerald-400{% else %}text-amber-400{% endif %}">
-              {% if mov.total_maples > 0 %}+{% endif %}{{ (mov.total_maples / 12)|round(2) }} <span class="text-xs font-semibold text-slate-400">caj.</span>
-            </div>
-            <div class="text-xs font-medium text-slate-400">
-              {{ mov.total_maples|abs }} maples
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Detalle, usuario y hora -->
-        <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-          <div class="flex items-center space-x-1.5">
-            <i class="fa-solid fa-user-circle text-slate-500"></i>
-            <span>{{ mov.usuario }}</span>
-            {% if mov.detalle and mov.detalle.strip() %}
-              <span class="text-slate-600">•</span>
-              <span class="text-slate-300 truncate max-w-[170px]" title="{{ mov.detalle }}">{{ mov.detalle }}</span>
+          <div class="mt-2.5 pt-2.5 border-t border-slate-800 flex items-center gap-2 text-xs text-slate-400 min-w-0">
+            <i class="fa-regular fa-clock shrink-0"></i>
+            <span class="shrink-0 tabular-nums">{{ mov.fecha_hora|hora_local('%H:%M') }}</span>
+            <span class="shrink-0 text-slate-600">·</span>
+            <span class="shrink-0 font-medium text-slate-300">{{ mov.usuario.split()[0] }}</span>
+            {% set nota = mov.detalle|nota_usuario %}
+            {% if nota %}
+            <span class="shrink-0 text-slate-600">·</span>
+            <span class="truncate text-slate-300" title="{{ nota }}">{{ nota }}</span>
             {% endif %}
           </div>
-          <div class="text-slate-500 whitespace-nowrap">
-            {{ mov.fecha_hora|hora_local('%d/%m %H:%M') }} hs
-          </div>
         </div>
-
       </div>
-      {% endfor %}
-    {% else %}
-      <div class="text-center py-12 bg-slate-900/60 rounded-2xl border border-slate-800/80 p-6">
-        <i class="fa-solid fa-clipboard-list text-3xl text-slate-600 mb-2 block"></i>
-        <p class="text-sm font-semibold text-slate-400">No hay movimientos en este período.</p>
-        <p class="text-xs text-slate-500 mt-1">Prueba cambiando el filtro a "Todos" o registra una operación con (+).</p>
-      </div>
-    {% endif %}
+    </article>
+    {% endfor %}
   </div>
+  {% else %}
+  <div class="text-center py-14 bg-slate-900 ring-1 ring-slate-800 rounded-2xl px-6">
+    <div class="w-12 h-12 rounded-2xl bg-slate-800 mx-auto flex items-center justify-center text-slate-400 mb-3">
+      <i class="fa-solid fa-clipboard-list text-lg"></i>
+    </div>
+    <p class="text-sm font-semibold text-slate-200">No hay movimientos en este período</p>
+    <p class="text-xs text-slate-400 mt-1">Probá con "Todo" o registrá una operación con el botón <b class="text-emerald-400">+</b>.</p>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}
