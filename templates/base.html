@@ -161,6 +161,8 @@
         <p id="descripcion-operacion" class="mt-3 text-sm text-slate-300 flex items-center gap-2">
           <i class="fa-solid fa-circle-info text-slate-400"></i><span></span>
         </p>
+        <!-- Leyenda del stock disponible (se arma con JS según la operación) -->
+        <div id="leyenda-stock" class="hidden mt-3"></div>
       </div>
 
       <form action="{{ url_for('registrar_operacion') }}" method="POST" id="form-operacion" class="flex flex-col min-h-0 flex-1">
@@ -324,6 +326,84 @@
     const getColorSeleccionado = () => getValorRadio('color', 'Blanco');
     const getCalibreSeleccionado = () => getValorRadio('calibre', 'Mediano');
 
+    function seleccionarRadio(nombre, valor) {
+      for (const r of document.getElementsByName(nombre)) {
+        if (r.value === valor) r.checked = true;
+      }
+    }
+
+    // Elegir desde la leyenda: marca color (y calibre) y recalcula
+    function elegirDesdeLeyenda(color, calibre) {
+      seleccionarRadio('color', color);
+      if (calibre) seleccionarRadio('calibre', calibre);
+      actualizarEstadoGalpon();
+    }
+
+    const CALIBRES = ['Chico', 'Mediano', 'Grande', 'Especial'];
+    const PUNTO_COLOR = {
+      'Blanco': '<span class="inline-block w-2.5 h-2.5 rounded-full shrink-0 bg-slate-100 ring-1 ring-slate-400"></span>',
+      'De Color': '<span class="inline-block w-2.5 h-2.5 rounded-full shrink-0 bg-amber-500 ring-1 ring-amber-300"></span>',
+    };
+
+    // Cantidad compacta en dos renglones para las celdas: "8 caj." / "+6 map."
+    function celdaCantidad(maples) {
+      if (!maples) return '<span class="text-slate-500 font-semibold">0</span>';
+      const caj = Math.floor(maples / 12), resto = maples % 12;
+      return `<span class="block font-bold text-white leading-tight">${caj} <span class="text-[11px] font-semibold text-slate-300">caj.</span></span>`
+        + (resto ? `<span class="block text-[11px] font-semibold text-slate-300 leading-tight">+${resto} map.</span>` : '');
+    }
+
+    // Muestra lo que hay en stock para la operación elegida, siempre a la vista
+    function renderLeyenda() {
+      const cont = document.getElementById('leyenda-stock');
+      if (!cont) return;
+      const tipo = document.getElementById('input-tipo')?.value;
+      const color = getColorSeleccionado(), calibre = getCalibreSeleccionado();
+
+      if (tipo === 'clasificacion') {
+        const sinHacer = STOCK.sin_hacer || {};
+        const total = (sinHacer['Blanco'] || 0) + (sinHacer['De Color'] || 0);
+        cont.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-semibold text-amber-300">Sin hacer en galpón</span>
+            <span class="text-xs text-slate-400 tabular-nums">Total ${fmtCaj(total)}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            ${['Blanco', 'De Color'].map(c => {
+              const m = sinHacer[c] || 0, activo = c === color;
+              return `<button type="button" onclick="elegirDesdeLeyenda('${c}')"
+                class="rounded-lg px-3 py-2 text-left ring-1 transition-all active:scale-[0.97] ${activo ? 'ring-sky-400 bg-sky-500/15' : 'ring-slate-700 bg-slate-950/60'} ${m ? '' : 'opacity-50'}">
+                <span class="flex items-center gap-1.5 text-xs font-semibold text-slate-200">${PUNTO_COLOR[c]} ${c}</span>
+                <span class="block text-sm font-bold text-white tabular-nums mt-0.5">${fmtCaj(m)}</span>
+              </button>`;
+            }).join('')}
+          </div>`;
+      } else if (tipo === 'venta') {
+        const hecho = STOCK.hecho || {};
+        const total = ['Blanco', 'De Color'].reduce((s, c) => s + CALIBRES.reduce((t, k) => t + ((hecho[c] || {})[k] || 0), 0), 0);
+        cont.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-semibold text-emerald-300">Hecho en stock</span>
+            <span class="text-xs text-slate-400 tabular-nums">Total ${fmtCaj(total)}</span>
+          </div>
+          <div class="grid grid-cols-[auto_repeat(4,minmax(0,1fr))] gap-1 text-center tabular-nums">
+            <span></span>
+            ${CALIBRES.map(k => `<span class="text-[11px] font-semibold text-slate-400 truncate">${k}</span>`).join('')}
+            ${['Blanco', 'De Color'].map(c => `
+              <span class="flex items-center pr-1" title="${c}">${PUNTO_COLOR[c]}</span>
+              ${CALIBRES.map(k => {
+                const m = (hecho[c] || {})[k] || 0, activo = c === color && k === calibre;
+                return `<button type="button" onclick="elegirDesdeLeyenda('${c}', '${k}')" aria-label="${c} ${k}: ${fmtCaj(m)}"
+                  class="min-h-[2.75rem] rounded-lg px-1 py-1 ring-1 text-sm transition-all active:scale-95 ${activo ? 'ring-amber-400 bg-amber-500/15' : 'ring-slate-700 bg-slate-950/60'}">${celdaCantidad(m)}</button>`;
+              }).join('')}
+            `).join('')}
+          </div>`;
+      } else {
+        cont.innerHTML = '';
+      }
+      cont.classList.toggle('hidden', tipo !== 'clasificacion' && tipo !== 'venta');
+    }
+
     function abrirModalOperacion(tipoInicial = 'ingreso_galpon') {
       const backdrop = document.getElementById('modal-operacion-backdrop');
       const sheet = document.getElementById('modal-operacion-sheet');
@@ -377,6 +457,7 @@
         btnTodo.disabled = disponibles === 0;
         btnTodo.classList.toggle('opacity-40', disponibles === 0);
       }
+      renderLeyenda();
       calcularPreview();
     }
 

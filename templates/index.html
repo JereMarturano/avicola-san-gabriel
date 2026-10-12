@@ -176,12 +176,6 @@
     document.getElementById('btn-tab-color').className = esBlanco ? inactivo : activo;
   }
 
-  function seleccionarRadio(nombre, valor) {
-    for (const r of document.getElementsByName(nombre)) {
-      if (r.value === valor) r.checked = true;
-    }
-  }
-
   function prepararClasificacion(color) {
     abrirModalOperacion('clasificacion');
     seleccionarRadio('color', color);
