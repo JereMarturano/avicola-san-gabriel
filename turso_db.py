@@ -191,6 +191,14 @@ class TursoClient:
                 # Si el stream ya expiró, el servidor descarta la transacción por su cuenta
                 self._reset_stream()
 
+class _ClosingConnection(sqlite3.Connection):
+    """Conexión SQLite que, además de confirmar/revertir, se cierra al salir del 'with'."""
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            return super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self.close()
+
 def get_db_client():
     """Retorna cliente Turso si las variables están configuradas, sino SQLite local."""
     url = os.environ.get("TURSO_DATABASE_URL", TURSO_URL)
@@ -200,6 +208,6 @@ def get_db_client():
     
     # Fallback local SQLite
     db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "avicola.db"))
-    conn = sqlite3.connect(db_path, timeout=10.0)
+    conn = sqlite3.connect(db_path, timeout=10.0, factory=_ClosingConnection)
     conn.row_factory = sqlite3.Row
     return conn

@@ -88,3 +88,9 @@ Aplicación web progresiva (PWA) moderna, ligera, rápida y autocontenida diseñ
 2. Hacé clic en **New Project** -> **Deploy from GitHub repo**.
 3. Seleccioná el repositorio. Railway detectará automáticamente el archivo `Procfile` y desplegará la app.
 4. En la pestaña **Settings** -> **Networking**, hacé clic en **Generate Domain** para obtener tu enlace web público.
+
+## Desarrollo
+
+- **Tests:** `python -m unittest discover tests` (usan una base SQLite temporal, nunca Turso).
+- **Estilos:** si se agregan clases de Tailwind nuevas en los templates, regenerar el CSS con
+  `npx tailwindcss@3 -i static/css/tailwind.src.css -o static/css/tailwind.css --minify`.

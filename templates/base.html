@@ -15,33 +15,8 @@
   <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
   <link rel="apple-touch-icon" href="/static/icons/icon.svg">
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#ecfdf5',
-              100: '#d1fae5',
-              500: '#10b981',
-              600: '#059669',
-              700: '#047857',
-              800: '#065f46',
-              900: '#064e3b'
-            },
-            egg: {
-              brown: '#d97706',
-              brownLight: '#fef3c7',
-              white: '#f8fafc'
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind CSS compilado (ver tailwind.config.js para regenerarlo) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
 
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -96,9 +71,11 @@
             {{ session.get('user_role') }}
           </span>
         </div>
-        <a href="{{ url_for('logout') }}" title="Cerrar sesión" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors">
-          <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
-        </a>
+        <form action="{{ url_for('logout') }}" method="POST">
+          <button type="submit" title="Cerrar sesión" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors">
+            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+          </button>
+        </form>
       </div>
       {% endif %}
     </div>

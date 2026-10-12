@@ -113,7 +113,7 @@
             {% endif %}
           </div>
           <div class="text-slate-500 whitespace-nowrap">
-            {{ mov.fecha_hora[8:10] }}/{{ mov.fecha_hora[5:7] }} {{ mov.fecha_hora[11:16] }} hs
+            {{ mov.fecha_hora|hora_local('%d/%m %H:%M') }} hs
           </div>
         </div>
 

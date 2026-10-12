@@ -17,7 +17,7 @@ def init_tables(safe_mode=True):
         print(f"   URL: {os.environ.get('TURSO_DATABASE_URL')}")
     else:
         print("[DESTINO] SQLite Local (Desarrollo)")
-        print("   Archivo: avicola.db")
+        print(f"   Archivo: {os.environ.get('DB_PATH', 'avicola.db')}")
     print("=" * 60)
 
     if not safe_mode:
@@ -78,6 +78,11 @@ def init_tables(safe_mode=True):
         );
     """)
 
+    # Indices para las consultas del dashboard e historial
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_mov_fecha ON movimientos(fecha_hora DESC);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_mov_tipo ON movimientos(tipo);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_consulta ON stock(estado, color, calibre);")
+
     if not safe_mode:
         print("[PELIGRO] Limpiando tablas existentes...")
         cursor.execute("DELETE FROM movimientos;")
@@ -120,6 +125,8 @@ def init_tables(safe_mode=True):
 
     if hasattr(db, "commit"):
         db.commit()
+    if hasattr(db, "close"):
+        db.close()
 
     if safe_mode:
         print("[EXITO] Base de datos inicializada de forma SEGURA. No se eliminaron datos existentes.")

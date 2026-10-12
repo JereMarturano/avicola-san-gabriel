@@ -257,7 +257,7 @@
                 {{ mov.tipo }} • <span class="text-slate-400">{{ mov.color }}{% if mov.calibre and mov.calibre != 'Sin Clasificar' %} ({{ mov.calibre }}){% endif %}</span>
               </div>
               <div class="text-[10px] text-slate-500">
-                {{ mov.fecha_hora[11:16] }} hs • Por {{ mov.usuario }}
+                {{ mov.fecha_hora|hora_local('%H:%M') }} hs • Por {{ mov.usuario }}
               </div>
             </div>
           </div>

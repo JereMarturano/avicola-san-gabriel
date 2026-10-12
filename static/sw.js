@@ -1,8 +1,9 @@
-const CACHE_NAME = 'san-gabriel-v1';
+const CACHE_NAME = 'san-gabriel-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/static/manifest.json',
-  '/static/icons/icon.svg'
+  '/static/icons/icon.svg',
+  '/static/css/tailwind.css'
 ];
 
 self.addEventListener('install', (event) => {

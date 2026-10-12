@@ -36,6 +36,10 @@ COLORES_VALIDOS = {'Blanco', 'De Color'}
 CALIBRES_VALIDOS = {'Chico', 'Mediano', 'Grande', 'Especial'}
 ROLES_VALIDOS = {'Admin', 'Operario'}
 TIPOS_OPERACION = {'ingreso_galpon', 'clasificacion', 'venta', 'ajuste'}
+ESTADOS_STOCK = {'por_seleccionar', 'seleccionado'}
+
+# La base guarda las fechas en UTC (CURRENT_TIMESTAMP); Argentina es UTC-3 todo el año
+OFFSET_ARGENTINA = '-3 hours'
 
 from turso_db import get_db_client
 
@@ -47,85 +51,9 @@ def get_db():
     return get_db_client()
 
 def init_db():
-    """Inicializa esquemas e índices optimizados."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # Tabla de usuarios
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL COLLATE NOCASE,
-                password_hash TEXT NOT NULL,
-                nombre TEXT NOT NULL,
-                rol TEXT NOT NULL CHECK(rol IN ('Admin', 'Operario')),
-                creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Tabla de saldos de stock
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS stock (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                estado TEXT NOT NULL CHECK(estado IN ('por_seleccionar', 'seleccionado')),
-                color TEXT NOT NULL CHECK(color IN ('Blanco', 'De Color')),
-                calibre TEXT NOT NULL,
-                cantidad_maples INTEGER NOT NULL DEFAULT 0 CHECK(cantidad_maples >= 0),
-                UNIQUE(estado, color, calibre)
-            )
-        """)
-        
-        # Tabla de historial de movimientos
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS movimientos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                usuario TEXT NOT NULL,
-                tipo TEXT NOT NULL,
-                color TEXT NOT NULL,
-                calibre TEXT,
-                cajones_input REAL NOT NULL,
-                maples_input REAL NOT NULL,
-                total_maples INTEGER NOT NULL,
-                detalle TEXT
-            )
-        """)
-
-        # Índices para consultas ultra rápidas (< 1ms)
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mov_fecha ON movimientos(fecha_hora DESC);")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_mov_tipo ON movimientos(tipo);")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_consulta ON stock(estado, color, calibre);")
-        
-        # Usuario administrador inicial si no existe (contraseña tomada de ADMIN_PASSWORD)
-        cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
-        admin_password = os.environ.get("ADMIN_PASSWORD", "")
-        if not cursor.fetchone() and len(admin_password) >= 6:
-            admin_pwd = generate_password_hash(admin_password)
-            cursor.execute("""
-                INSERT INTO usuarios (username, password_hash, nombre, rol)
-                VALUES (?, ?, ?, ?)
-            """, ("admin", admin_pwd, "Administrador Principal", "Admin"))
-            
-        # Inicializar categorías de stock base
-        estados_iniciales = [
-            ('por_seleccionar', 'Blanco', 'Sin Clasificar'),
-            ('por_seleccionar', 'De Color', 'Sin Clasificar'),
-            ('seleccionado', 'Blanco', 'Chico'),
-            ('seleccionado', 'Blanco', 'Mediano'),
-            ('seleccionado', 'Blanco', 'Grande'),
-            ('seleccionado', 'Blanco', 'Especial'),
-            ('seleccionado', 'De Color', 'Chico'),
-            ('seleccionado', 'De Color', 'Mediano'),
-            ('seleccionado', 'De Color', 'Grande'),
-            ('seleccionado', 'De Color', 'Especial')
-        ]
-        for estado, color, calibre in estados_iniciales:
-            cursor.execute("""
-                INSERT OR IGNORE INTO stock (estado, color, calibre, cantidad_maples)
-                VALUES (?, ?, ?, 0)
-            """, (estado, color, calibre))
-            
-        conn.commit()
+    """Inicializa esquemas, índices y datos base (definidos solo en init_turso.py)."""
+    from init_turso import init_tables
+    init_tables(safe_mode=True)
 
 # ==============================================================================
 # SEGURIDAD HTTP & ENCABEZADOS (CABECERAS ANTI-CLICKJACKING Y XSS)
@@ -140,10 +68,32 @@ def set_security_headers(response):
 # ==============================================================================
 # DECORADORES Y AUTENTICACIÓN
 # ==============================================================================
+def sesion_valida():
+    """
+    Confirma que el usuario de la sesión sigue existiendo y refresca su rol desde la base,
+    para que un usuario eliminado o degradado pierda el acceso de inmediato.
+    """
+    if 'user_id' not in session:
+        return False
+    if 'usuario_verificado' not in g:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT username, nombre, rol FROM usuarios WHERE id = ?", (session['user_id'],))
+            user = cursor.fetchone()
+        if not user:
+            session.clear()
+            g.usuario_verificado = False
+        else:
+            session['username'] = user['username']
+            session['user_nombre'] = user['nombre']
+            session['user_role'] = user['rol']
+            g.usuario_verificado = True
+    return g.usuario_verificado
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if not sesion_valida():
             flash("Por favor inicia sesión para continuar", "warning")
             return redirect(url_for('login'))
         return f(*args, **kwargs)
@@ -152,7 +102,7 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if not sesion_valida():
             return redirect(url_for('login'))
         if session.get('user_role') != 'Admin':
             flash("Acceso restringido a Administradores.", "danger")
@@ -241,6 +191,15 @@ class StockService:
             }
             return por_seleccionar, seleccionado, resumen
 
+@app.template_filter('hora_local')
+def hora_local(fecha_utc, formato='%d/%m %H:%M'):
+    """Convierte un timestamp UTC de la base ('YYYY-MM-DD HH:MM:SS') a hora de Argentina."""
+    try:
+        dt = datetime.strptime(str(fecha_utc)[:19], '%Y-%m-%d %H:%M:%S') - timedelta(hours=3)
+    except ValueError:
+        return fecha_utc
+    return dt.strftime(formato)
+
 # Contexto global inyectado a las plantillas
 @app.context_processor
 def inject_stock():
@@ -287,7 +246,7 @@ def login():
                 
     return render_template('login.html')
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
     flash("Has cerrado sesión correctamente", "info")
@@ -424,6 +383,9 @@ def registrar_operacion():
                 
             elif tipo == 'ajuste':
                 estado_ajuste = request.form.get('estado_ajuste', 'seleccionado')
+                if estado_ajuste not in ESTADOS_STOCK or (estado_ajuste == 'seleccionado' and calibre not in CALIBRES_VALIDOS):
+                    flash("Estado o calibre de ajuste inválido.", "danger")
+                    return redirect(url_for('index'))
                 calibre_ajuste = calibre if estado_ajuste == 'seleccionado' else 'Sin Clasificar'
                 nuevo_total = max(0, total_maples)
                 
@@ -470,9 +432,11 @@ def historial():
         params = []
         
         if filtro == 'hoy':
-            query += " AND DATE(fecha_hora, 'localtime') = DATE('now', 'localtime')"
+            query += " AND DATE(fecha_hora, ?) = DATE('now', ?)"
+            params += [OFFSET_ARGENTINA, OFFSET_ARGENTINA]
         elif filtro == 'semana':
-            query += " AND DATE(fecha_hora, 'localtime') >= DATE('now', '-7 days', 'localtime')"
+            query += " AND DATE(fecha_hora, ?) >= DATE('now', ?, '-7 days')"
+            params += [OFFSET_ARGENTINA, OFFSET_ARGENTINA]
             
         if tipo_filtro:
             query += " AND tipo = ?"
@@ -499,6 +463,9 @@ def usuarios():
         
         if request.method == 'POST':
             accion = request.form.get('accion')
+            if accion in ('editar', 'eliminar') and not request.form.get('user_id', '').isdigit():
+                flash("Usuario inválido.", "danger")
+                return redirect(url_for('usuarios'))
             
             if accion == 'crear':
                 username = request.form.get('username', '').strip().lower()
