@@ -46,9 +46,16 @@
     .sheet-transition {
       transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.28s ease;
     }
+    /* Punto que invita a ver el tutorial la primera vez */
+    .punto-nuevo {
+      position: absolute; top: 1px; right: 1px; width: 10px; height: 10px; border-radius: 9999px;
+      background: #34d399; box-shadow: 0 0 0 2px #020617; animation: latido 1.6s ease-in-out infinite;
+    }
+    .punto-nuevo.hidden { display: none; }
+    @keyframes latido { 50% { transform: scale(1.35); opacity: .6; } }
   </style>
 </head>
-<body class="h-full flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
+<body data-pagina="{{ request.endpoint }}" class="h-full flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
 
   <!-- Encabezado fijo (en el login no se muestra: el logo está en la tarjeta) -->
   {% if request.endpoint != 'login' %}
@@ -74,6 +81,10 @@
             <div class="text-[11px] font-medium {% if session.get('user_role') == 'Admin' %}text-violet-300{% else %}text-emerald-300{% endif %}">{{ session.get('user_role') }}</div>
           </div>
         </div>
+        <button type="button" onclick="abrirTutorial()" data-tour="ayuda" title="Tutorial: cómo usar la app" aria-label="Ver tutorial" class="relative w-10 h-10 rounded-full bg-slate-900 ring-1 ring-slate-800 hover:ring-emerald-500/50 hover:text-emerald-300 active:scale-95 flex items-center justify-center text-slate-300 transition-all">
+          <i class="fa-solid fa-question text-sm"></i>
+          <span id="punto-tutorial" class="punto-nuevo hidden"></span>
+        </button>
         <form action="{{ url_for('logout') }}" method="POST">
           <button type="submit" title="Cerrar sesión" aria-label="Cerrar sesión" class="w-10 h-10 rounded-full bg-slate-900 ring-1 ring-slate-800 hover:ring-red-500/50 hover:text-red-400 active:scale-95 flex items-center justify-center text-slate-300 transition-all">
             <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
@@ -112,8 +123,8 @@
 
   {% if session.get('user_id') %}
   <!-- Barra de navegación inferior (oculta en el conteo, que tiene su propio pie) -->
-  {% macro item_nav(endpoint, icono, texto) %}
-  <a href="{{ url_for(endpoint) }}" class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors {% if request.endpoint == endpoint %}text-emerald-400{% else %}text-slate-400 hover:text-slate-200{% endif %}">
+  {% macro item_nav(endpoint, icono, texto, tour='') %}
+  <a href="{{ url_for(endpoint) }}" {% if tour %}data-tour="{{ tour }}" {% endif %}class="flex-1 h-full flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-colors {% if request.endpoint == endpoint %}text-emerald-400{% else %}text-slate-400 hover:text-slate-200{% endif %}">
     <i class="fa-solid {{ icono }} text-lg"></i>
     <span>{{ texto }}</span>
   </a>
@@ -123,13 +134,13 @@
     <div class="max-w-md md:max-w-3xl mx-auto flex items-center h-16 px-2">
       {{ item_nav('index', 'fa-boxes-stacked', 'Stock') }}
       <div class="flex-1 flex justify-center">
-        <button onclick="abrirModalOperacion()" aria-label="Registrar movimiento" class="-mt-8 w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-500/30 ring-4 ring-slate-950 active:scale-95 transition-all flex items-center justify-center">
+        <button onclick="abrirModalOperacion()" data-tour="boton-mas" aria-label="Registrar movimiento" class="-mt-8 w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-xl shadow-emerald-500/30 ring-4 ring-slate-950 active:scale-95 transition-all flex items-center justify-center">
           <i class="fa-solid fa-plus text-2xl"></i>
         </button>
       </div>
-      {{ item_nav('historial', 'fa-clock-rotate-left', 'Historial') }}
+      {{ item_nav('historial', 'fa-clock-rotate-left', 'Historial', 'nav-historial') }}
       {% if session.get('user_role') == 'Admin' %}
-      {{ item_nav('usuarios', 'fa-users-gear', 'Usuarios') }}
+      {{ item_nav('usuarios', 'fa-users-gear', 'Usuarios', 'nav-usuarios') }}
       {% endif %}
     </div>
   </nav>
@@ -148,7 +159,7 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-        <div class="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800">
+        <div data-tour="op-tipos" class="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800">
           <button type="button" onclick="setOperacionTipo('ingreso_galpon')" id="tab-ingreso" class="tab-operacion">
             <i class="fa-solid fa-warehouse"></i><span>Ingreso</span>
           </button>
@@ -173,7 +184,7 @@
         <div class="overflow-y-auto px-5 py-4 space-y-5">
 
           <!-- Color del huevo -->
-          <fieldset>
+          <fieldset data-tour="op-color">
             <legend class="etiqueta-campo">Color del huevo</legend>
             <div class="grid grid-cols-2 gap-2.5">
               {% for valor, sub, punto, activo in [
@@ -222,7 +233,7 @@
           </fieldset>
 
           <!-- Cantidad -->
-          <fieldset>
+          <fieldset data-tour="op-cantidad">
             <div class="flex items-baseline justify-between mb-2">
               <legend class="etiqueta-campo !mb-0">Cantidad</legend>
               <span class="text-xs text-slate-400">1 cajón = 12 maples</span>
@@ -274,7 +285,7 @@
         </div>
 
         <!-- Pie fijo: resumen + confirmar (siempre visible) -->
-        <div class="shrink-0 border-t border-slate-800 bg-slate-900 px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-2.5">
+        <div data-tour="op-confirmar" class="shrink-0 border-t border-slate-800 bg-slate-900 px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-2.5">
           <div id="aviso-pie" class="hidden text-sm font-semibold text-red-300 flex items-center gap-2">
             <i class="fa-solid fa-circle-exclamation"></i><span></span>
           </div>
@@ -300,6 +311,18 @@
         navigator.serviceWorker.register('/sw.js').catch(err => console.log('Error de ServiceWorker:', err));
       });
     }
+
+    // Tutorial: el script se descarga recién la primera vez que se pide
+    function abrirTutorial() {
+      localStorage.setItem('tutorial-visto', '1');
+      document.getElementById('punto-tutorial')?.classList.add('hidden');
+      if (window.Tutorial) return Tutorial.iniciar();
+      const s = document.createElement('script');
+      s.src = "{{ url_for('static', filename='js/tutorial.js') }}";
+      s.onload = () => Tutorial.iniciar();
+      document.head.appendChild(s);
+    }
+    if (!localStorage.getItem('tutorial-visto')) document.getElementById('punto-tutorial')?.classList.remove('hidden');
 
     // Los mensajes de éxito se ocultan solos; los de error quedan hasta que se cierran
     document.querySelectorAll('.mensaje-flash[data-categoria="success"], .mensaje-flash[data-categoria="info"]').forEach(el => {

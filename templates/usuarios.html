@@ -10,7 +10,7 @@
   {{ titulo_seccion('fa-users-gear', 'Usuarios', 'Operarios y accesos al sistema') }}
 
   <!-- FORMULARIO CREAR USUARIO / OPERARIO -->
-  <div class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4">
+  <div data-tour="nuevo-usuario" class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4">
     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center space-x-1.5">
       <i class="fa-solid fa-user-plus text-emerald-400"></i>
       <span>Nuevo usuario</span>
@@ -88,7 +88,7 @@
   </div>
 
   <!-- LISTA DE USUARIOS ACTIVOS -->
-  <div class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3">
+  <div data-tour="lista-usuarios" class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3">
     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
       <i class="fa-solid fa-address-book text-slate-400"></i>
       <span>Usuarios registrados ({{ usuarios|length }})</span>

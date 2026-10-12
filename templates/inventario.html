@@ -47,7 +47,7 @@
   </div>
 
   <!-- SIN HACER -->
-  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3">
+  <section data-tour="conteo-sin-hacer" class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
       {{ titulo_seccion('fa-wheat-awn', 'Sin hacer', 'En galpón, falta clasificar', 'text-amber-400') }}
       <span class="shrink-0 text-sm font-bold text-white tabular-nums" id="subtotal-sin-hacer"></span>
@@ -60,7 +60,7 @@
   </section>
 
   <!-- HECHO -->
-  <section class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-4">
+  <section data-tour="conteo-hecho" class="bg-slate-900 ring-1 ring-slate-800 rounded-2xl p-4 space-y-4">
     <div class="flex items-center justify-between gap-3">
       {{ titulo_seccion('fa-boxes-stacked', 'Hecho', 'Clasificado por calibre') }}
       <span class="shrink-0 text-sm font-bold text-white tabular-nums" id="subtotal-hecho"></span>
@@ -86,7 +86,7 @@
 
   <!-- PIE FIJO: total contado + guardar -->
   <div class="fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-    <div class="max-w-md md:max-w-3xl mx-auto px-4 pt-3 flex items-center gap-3">
+    <div data-tour="conteo-revisar" class="max-w-md md:max-w-3xl mx-auto px-4 pt-3 flex items-center gap-3">
       <div class="min-w-0 flex-1">
         <div class="text-xs text-slate-400">Stock total contado</div>
         <div class="text-base font-bold text-white tabular-nums truncate" id="total-contado"></div>

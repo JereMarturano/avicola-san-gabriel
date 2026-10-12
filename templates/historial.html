@@ -16,7 +16,7 @@
     </div>
 
     <!-- Período -->
-    <div class="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800 text-sm font-semibold text-center">
+    <div data-tour="filtro-periodo" class="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded-xl ring-1 ring-slate-800 text-sm font-semibold text-center">
       {% for valor, texto in [('hoy', 'Hoy'), ('semana', '7 días'), ('todo', 'Todo')] %}
       <a href="{{ url_for('historial', filtro=valor, tipo=tipo_filtro) }}"
         class="h-9 rounded-lg flex items-center justify-center transition-all {% if filtro == valor %}bg-emerald-600 text-white shadow{% else %}text-slate-400 hover:text-white{% endif %}">
@@ -26,7 +26,7 @@
     </div>
 
     <!-- Tipo de operación -->
-    <div class="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5 text-sm [scrollbar-width:none]">
+    <div data-tour="filtro-tipo" class="flex gap-2 overflow-x-auto -mx-4 px-4 pb-0.5 text-sm [scrollbar-width:none]">
       {% for valor, texto, activo in [
         ('', 'Todos', 'bg-slate-200 text-slate-900'),
         ('Ingreso Galpón', 'Ingresos', 'bg-emerald-600 text-white'),
@@ -44,7 +44,7 @@
 
   <!-- LISTA AGRUPADA POR DÍA -->
   {% if movimientos %}
-  <div class="space-y-2">
+  <div data-tour="lista" class="space-y-2">
     {% for mov in movimientos %}
     {% if loop.changed(mov.fecha_hora|dia_local) %}
     <h3 class="pt-3 first:pt-0 px-1 text-xs font-bold uppercase tracking-wide text-slate-400">{{ mov.fecha_hora|dia_local }}</h3>
