@@ -4,14 +4,20 @@
   "description": "Control diario de stock avícola - Molinari",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#047857",
+  "background_color": "#020617",
+  "theme_color": "#020617",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/static/icons/icon.svg",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

@@ -1,8 +1,9 @@
-const CACHE_NAME = 'san-gabriel-v5';
+const CACHE_NAME = 'san-gabriel-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/static/manifest.json',
-  '/static/icons/icon.svg',
+  '/static/img/logo-marca.png',
+  '/static/icons/icon-192.png',
   '/static/css/tailwind.css'
 ];
 
