@@ -9,5 +9,7 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: PYTHON_VERSION
-        value: 3.11.9
+      - key: TURSO_DATABASE_URL
+        value: libsql://avicola-db-jeremarturano.aws-sa-east-1.turso.io
+      - key: TURSO_AUTH_TOKEN
+        value: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTE4MTk3MDAsImlkIjoiMDFhMTMwYzYtNzEwMS03NjY5LWJkZDgtNDVkYjg4OTkwMGI4Iiwia2lkIjoieXFKemx5eW0yMmFWQVJqX2g3bldVbzNnczFJNU9MWkRhdlZRbnl2UjJLVSIsInJpZCI6ImVjNTZiZjk1LTUwMDAtNDcyOC1hMWY1LTY1Y2MwNzFhMDZkOCJ9.p07tQcRH1yEulW_VarZhqEtz1Rl-LAiXiwdEwnmidWfWvnZktXPm7sO05h_hk4IVpHWLltRQgICjGmrJAUTWBw

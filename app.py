@@ -32,18 +32,14 @@ CALIBRES_VALIDOS = {'Chico', 'Mediano', 'Grande', 'Especial'}
 ROLES_VALIDOS = {'Admin', 'Operario'}
 TIPOS_OPERACION = {'ingreso_galpon', 'clasificacion', 'venta', 'ajuste'}
 
+from turso_db import get_db_client
+
 # ==============================================================================
-# CAPA DE ACCESO A DATOS (PERSISTENCIA Y OPTIMIZACIÓN SQLITE)
+# CAPA DE ACCESO A DATOS (PERSISTENCIA TURSO CLOUD / SQLITE)
 # ==============================================================================
 def get_db():
-    """Retorna conexión configurada para alto rendimiento (WAL + Foreign Keys)."""
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
-    conn.row_factory = sqlite3.Row
-    # Optimizaciones de alta concurrencia y velocidad
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
-    conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
+    """Retorna cliente de base de datos Turso Cloud o SQLite local según configuración."""
+    return get_db_client()
 
 def init_db():
     """Inicializa esquemas e índices optimizados."""
