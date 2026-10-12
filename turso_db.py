@@ -62,95 +62,134 @@ class TursoCursor:
         self._row_index = len(self._last_results)
         return remaining
 
+# Sesión HTTP compartida: reutiliza la conexión TLS entre consultas en lugar de
+# negociar una nueva cada vez (cada handshake son varios viajes de red extra).
+_http = requests.Session()
+
+_WRITE_PREFIXES = ("INSERT", "UPDATE", "DELETE", "REPLACE")
+
+def _encode_arg(p):
+    if p is None:
+        return {"type": "null"}
+    if isinstance(p, bool) or isinstance(p, int):
+        return {"type": "integer", "value": str(int(p))}
+    if isinstance(p, float):
+        return {"type": "float", "value": p}
+    return {"type": "text", "value": str(p)}
+
+def _decode_cell(cell):
+    t = cell.get("type")
+    v = cell.get("value")
+    if t == "integer":
+        return int(v) if v is not None else None
+    if t == "float":
+        return float(v) if v is not None else None
+    if t == "null":
+        return None
+    return v
+
+def _raise_turso_error(message):
+    # Mismo tipo de excepción que sqlite3 para que los except de app.py funcionen igual
+    if "UNIQUE constraint" in message or "CHECK constraint" in message or "constraint failed" in message:
+        raise sqlite3.IntegrityError(message)
+    raise sqlite3.OperationalError(message)
+
 class TursoClient:
+    """
+    Cliente Turso (protocolo Hrana sobre HTTP) con semántica similar a sqlite3:
+    la primera escritura abre una transacción (BEGIN) que se mantiene en el mismo
+    stream del servidor mediante el 'baton' hasta commit() o rollback().
+    """
     def __init__(self, db_url, auth_token):
         # Convertir libsql:// a https://
         clean_url = db_url.replace("libsql://", "https://")
         if not clean_url.startswith("https://"):
             clean_url = "https://" + clean_url
-        self.endpoint = clean_url.rstrip("/") + "/v2/pipeline"
+        self.base_url = clean_url.rstrip("/")
         self.token = auth_token
+        self._baton = None
+        self._stream_url = None
+        self.in_transaction = False
 
     def cursor(self):
         return TursoCursor(self)
-
-    def commit(self):
-        pass
-
-    def rollback(self):
-        pass
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        # Igual que sqlite3: confirma si no hubo excepción, revierte si la hubo
+        if exc_type is None:
+            self.commit()
+        else:
+            self.rollback()
 
-    def execute(self, sql, params=None):
-        stmt_args = []
-        if params:
-            for p in params:
-                if p is None:
-                    stmt_args.append({"type": "null"})
-                elif isinstance(p, int):
-                    stmt_args.append({"type": "integer", "value": str(p)})
-                elif isinstance(p, float):
-                    stmt_args.append({"type": "float", "value": p})
-                else:
-                    stmt_args.append({"type": "text", "value": str(p)})
+    def _pipeline(self, stmts, close):
+        """Envía varias sentencias en un solo viaje de red y devuelve sus resultados."""
+        reqs = [{"type": "execute", "stmt": s} for s in stmts]
+        if close:
+            reqs.append({"type": "close"})
+        payload = {"baton": self._baton, "requests": reqs}
+        url = (self._stream_url or self.base_url) + "/v2/pipeline"
+        headers = {"Authorization": f"Bearer {self.token}"}
 
-        stmt = {"sql": sql}
-        if stmt_args:
-            stmt["args"] = stmt_args
-
-        payload = {
-            "requests": [
-                {"type": "execute", "stmt": stmt},
-                {"type": "close"}
-            ]
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json"
-        }
-
-        resp = requests.post(self.endpoint, headers=headers, json=payload, timeout=12)
+        try:
+            resp = _http.post(url, headers=headers, json=payload, timeout=12)
+        except requests.RequestException as e:
+            self._reset_stream()
+            raise sqlite3.OperationalError(f"Error de conexión con Turso: {e}")
         if resp.status_code != 200:
+            self._reset_stream()
             raise sqlite3.OperationalError(f"Error Turso ({resp.status_code}): {resp.text}")
 
         data = resp.json()
-        results_list = data.get("results", [])
-        if not results_list:
-            return []
+        if close:
+            self._reset_stream()
+        else:
+            self._baton = data.get("baton")
+            if data.get("base_url"):
+                self._stream_url = data["base_url"].rstrip("/")
 
-        first = results_list[0]
-        if first.get("type") == "error":
-            err_msg = first.get("error", {}).get("message", "Error Turso")
-            raise sqlite3.OperationalError(err_msg)
+        results = data.get("results", [])
+        for res in results[:len(stmts)]:
+            if res.get("type") == "error":
+                _raise_turso_error(res.get("error", {}).get("message", "Error Turso"))
+        return [r.get("response", {}).get("result", {}) for r in results[:len(stmts)]]
 
-        exec_res = first.get("response", {}).get("result", {})
-        cols_meta = exec_res.get("cols", [])
-        cols = [c["name"] for c in cols_meta]
-        raw_rows = exec_res.get("rows", [])
+    def _reset_stream(self):
+        self._baton = None
+        self._stream_url = None
+        self.in_transaction = False
 
-        parsed_rows = []
-        for r in raw_rows:
-            row_vals = []
-            for cell in r:
-                t = cell.get("type")
-                v = cell.get("value")
-                if t == "integer":
-                    row_vals.append(int(v) if v is not None else None)
-                elif t == "float":
-                    row_vals.append(float(v) if v is not None else None)
-                elif t == "null":
-                    row_vals.append(None)
-                else:
-                    row_vals.append(v)
-            parsed_rows.append(TursoRow(cols, row_vals))
+    def execute(self, sql, params=None):
+        stmt = {"sql": sql}
+        if params:
+            stmt["args"] = [_encode_arg(p) for p in params]
 
-        return parsed_rows
+        stmts = [stmt]
+        is_write = sql.lstrip().upper().startswith(_WRITE_PREFIXES)
+        if is_write and not self.in_transaction:
+            stmts.insert(0, {"sql": "BEGIN"})
+            self.in_transaction = True
+
+        # Fuera de una transacción la consulta se envía y se cierra el stream en un solo viaje
+        results = self._pipeline(stmts, close=not self.in_transaction)
+        exec_res = results[-1]
+
+        cols = [c["name"] for c in exec_res.get("cols", [])]
+        return [TursoRow(cols, [_decode_cell(c) for c in r]) for r in exec_res.get("rows", [])]
+
+    def commit(self):
+        if self.in_transaction:
+            self._pipeline([{"sql": "COMMIT"}], close=True)
+
+    def rollback(self):
+        if self.in_transaction:
+            try:
+                self._pipeline([{"sql": "ROLLBACK"}], close=True)
+            except sqlite3.Error:
+                # Si el stream ya expiró, el servidor descarta la transacción por su cuenta
+                self._reset_stream()
 
 def get_db_client():
     """Retorna cliente Turso si las variables están configuradas, sino SQLite local."""

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, jsonify, send_from_directory, abort
+    session, flash, jsonify, send_from_directory, abort, g
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -201,7 +201,13 @@ class StockService:
 
     @classmethod
     def obtener_resumen_completo(cls):
-        """Consulta eficiente única para abastecer a la UI."""
+        """Consulta eficiente única para abastecer a la UI (cacheada por request)."""
+        if 'resumen_stock' not in g:
+            g.resumen_stock = cls._consultar_resumen()
+        return g.resumen_stock
+
+    @classmethod
+    def _consultar_resumen(cls):
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT estado, color, calibre, cantidad_maples FROM stock ORDER BY estado, color, calibre")
@@ -588,6 +594,11 @@ def manifest():
 @app.route('/sw.js')
 def service_worker():
     return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+# Endpoint liviano para monitores externos (evita que Render apague la app por inactividad)
+@app.route('/health')
+def health():
+    return "ok", 200
 
 # ==============================================================================
 # INICIO DE LA APLICACIÓN
