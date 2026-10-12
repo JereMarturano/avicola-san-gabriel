@@ -25,3 +25,6 @@ __pycache__/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Base SQLite local (contiene datos y hashes de contrasenas)
+*.db

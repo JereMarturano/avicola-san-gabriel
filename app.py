@@ -13,7 +13,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # CONFIGURACIÓN & SEGURIDAD GENERAL
 # ==============================================================================
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "avicola-san-gabriel-sec-key-2026-xyz789")
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    if os.environ.get("RENDER"):
+        raise RuntimeError("Falta la variable de entorno SECRET_KEY en producción.")
+    # Desarrollo local: clave aleatoria (las sesiones se cierran al reiniciar el servidor)
+    app.secret_key = os.urandom(32)
 
 # Cookies y Sesión Segura
 app.config.update(
@@ -91,10 +96,11 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_mov_tipo ON movimientos(tipo);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_consulta ON stock(estado, color, calibre);")
         
-        # Usuario administrador predeterminado si no existe
+        # Usuario administrador inicial si no existe (contraseña tomada de ADMIN_PASSWORD)
         cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
-        if not cursor.fetchone():
-            admin_pwd = generate_password_hash("admin")
+        admin_password = os.environ.get("ADMIN_PASSWORD", "")
+        if not cursor.fetchone() and len(admin_password) >= 6:
+            admin_pwd = generate_password_hash(admin_password)
             cursor.execute("""
                 INSERT INTO usuarios (username, password_hash, nombre, rol)
                 VALUES (?, ?, ?, ?)

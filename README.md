@@ -25,7 +25,7 @@ Aplicación web progresiva (PWA) moderna, ligera, rápida y autocontenida diseñ
 - **Autenticación y Roles:**
   - Sesión protegida y contraseñas hasheadas (`werkzeug.security`).
   - Roles: **Admin** (acceso total y gestión de operarios) y **Operario** (carga de stock e historial).
-  - Usuario inicial autogenerado: `admin` / `admin`.
+  - Usuario inicial `admin` creado solo si se define `ADMIN_PASSWORD` (mínimo 6 caracteres).
 - **Persistencia Local y Cero Costo:**
   - Base de datos local SQLite (`avicola.db`). Sin costos de bases de datos externas en la nube.
 

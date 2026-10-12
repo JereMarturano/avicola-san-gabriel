@@ -103,17 +103,20 @@ def init_tables(safe_mode=True):
             VALUES (?, ?, ?, 0);
         """, (estado, color, calibre))
 
-    # Crear administrador por defecto si no existe ningun admin
+    # Crear administrador inicial si no existe (contraseña tomada de ADMIN_PASSWORD)
     cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
-    if not cursor.fetchone():
-        admin_pwd = generate_password_hash("admin")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "")
+    if cursor.fetchone():
+        print("[USUARIOS] Usuario 'admin' ya existente (no modificado).")
+    elif len(admin_password) < 6:
+        print("[USUARIOS] No se creo 'admin': defina ADMIN_PASSWORD (minimo 6 caracteres).")
+    else:
+        admin_pwd = generate_password_hash(admin_password)
         cursor.execute("""
             INSERT INTO usuarios (username, password_hash, nombre, rol)
             VALUES (?, ?, ?, ?);
         """, ("admin", admin_pwd, "Administrador Principal", "Admin"))
-        print("[USUARIOS] Usuario 'admin' creado con contrasena inicial por defecto.")
-    else:
-        print("[USUARIOS] Usuario 'admin' ya existente (no modificado).")
+        print("[USUARIOS] Usuario 'admin' creado con la contrasena de ADMIN_PASSWORD.")
 
     if hasattr(db, "commit"):
         db.commit()
