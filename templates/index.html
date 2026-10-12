@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Stock - Avícola San Gabriel{% endblock %}
+
+{% block content %}
+<div class="space-y-4 pt-2">
+
+  <!-- TARJETAS DE RESUMEN SUPERIOR (KPIs Móviles) -->
+  <div class="grid grid-cols-2 gap-2.5">
+    
+    <!-- KPI 1: Seleccionado (Listo para Venta) -->
+    <div class="bg-gradient-to-br from-emerald-950/70 to-slate-900 border border-emerald-800/40 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
+      <div class="absolute -right-2 -bottom-2 text-emerald-900/30 text-5xl pointer-events-none">
+        <i class="fa-solid fa-boxes-packing"></i>
+      </div>
+      <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1 flex items-center">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+        Seleccionado Listo
+      </div>
+      <div class="text-xl font-extrabold text-white tracking-tight">
+        {{ resumen.total_seleccionado.cajones_decimal }} <span class="text-xs font-semibold text-emerald-300">Caj.</span>
+      </div>
+      <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+        <span>{{ resumen.total_seleccionado.total_maples }} Maples</span>
+        <span class="text-[10px] text-slate-500 font-medium">({{ resumen.total_seleccionado.detalle_texto }})</span>
+      </div>
+    </div>
+
+    <!-- KPI 2: Por Seleccionar (En Galpón) -->
+    <div class="bg-gradient-to-br from-amber-950/70 to-slate-900 border border-amber-800/40 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
+      <div class="absolute -right-2 -bottom-2 text-amber-900/30 text-5xl pointer-events-none">
+        <i class="fa-solid fa-warehouse"></i>
+      </div>
+      <div class="text-[10px] font-bold uppercase tracking-wider text-amber-400 mb-1 flex items-center">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 animate-pulse"></span>
+        Por Seleccionar
+      </div>
+      <div class="text-xl font-extrabold text-white tracking-tight">
+        {{ resumen.total_por_seleccionar.cajones_decimal }} <span class="text-xs font-semibold text-amber-300">Caj.</span>
+      </div>
+      <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+        <span>{{ resumen.total_por_seleccionar.total_maples }} Maples</span>
+        <span class="text-[10px] text-slate-500 font-medium">({{ resumen.total_por_seleccionar.detalle_texto }})</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTONES DE ACCIÓN RÁPIDA ERGONÓMICOS -->
+  <div class="grid grid-cols-3 gap-2">
+    <button onclick="abrirModalOperacion('ingreso_galpon')" class="bg-slate-900 border border-emerald-800/50 hover:bg-emerald-950/40 active:scale-95 p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow transition-all group">
+      <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <i class="fa-solid fa-cart-flatbed text-base"></i>
+      </div>
+      <span class="text-xs font-bold text-slate-200 leading-tight">+ Ingreso</span>
+      <span class="text-[9px] text-slate-400">De Galpón</span>
+    </button>
+
+    <button onclick="abrirModalOperacion('clasificacion')" class="bg-slate-900 border border-sky-800/50 hover:bg-sky-950/40 active:scale-95 p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow transition-all group">
+      <div class="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <i class="fa-solid fa-layer-group text-base"></i>
+      </div>
+      <span class="text-xs font-bold text-slate-200 leading-tight">Clasificar</span>
+      <span class="text-[9px] text-slate-400">Embalar en cajón</span>
+    </button>
+
+    <button onclick="abrirModalOperacion('venta')" class="bg-slate-900 border border-amber-800/50 hover:bg-amber-950/40 active:scale-95 p-3 rounded-2xl flex flex-col items-center justify-center text-center shadow transition-all group">
+      <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+        <i class="fa-solid fa-truck-moving text-base"></i>
+      </div>
+      <span class="text-xs font-bold text-slate-200 leading-tight">Despacho</span>
+      <span class="text-[9px] text-slate-400">Venta cliente</span>
+    </button>
+  </div>
+
+  <!-- SECCIÓN 1: HUEVO POR SELECCIONAR (GALPÓN) -->
+  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center space-x-2">
+        <i class="fa-solid fa-wheat-awn text-amber-400 text-sm"></i>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">1. Por Seleccionar (Galpón)</h3>
+      </div>
+      <span class="text-[11px] text-sky-400 bg-sky-950/80 border border-sky-800/60 px-2.5 py-0.5 rounded-full font-bold">
+        Te quedan {{ resumen.total_por_seleccionar.cajones_decimal }} caj. por clasificar
+      </span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2.5">
+      <!-- Blanco Galpón -->
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="inline-flex items-center space-x-1 text-xs font-bold text-slate-200">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-400 inline-block"></span>
+              <span>Blanco</span>
+            </span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded bg-sky-950 text-sky-400 font-semibold border border-sky-800/40">Sin clasificar</span>
+          </div>
+          <div class="text-lg font-extrabold text-white">
+            {{ por_seleccionar['Blanco'].cajones_decimal }} <span class="text-xs font-normal text-slate-400">caj.</span>
+          </div>
+          <div class="text-[11px] text-sky-400 font-semibold">
+            Te quedan {{ por_seleccionar['Blanco'].total_maples }} maples
+          </div>
+          <div class="text-[10px] text-slate-500">
+            ({{ por_seleccionar['Blanco'].detalle_texto }})
+          </div>
+        </div>
+        <button onclick="prepararClasificacion('Blanco')" class="mt-2.5 w-full py-1.5 bg-sky-900/40 hover:bg-sky-800/60 active:scale-95 text-sky-200 text-[11px] font-bold rounded-lg border border-sky-700/60 flex items-center justify-center space-x-1.5 transition-all">
+          <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i>
+          <span>Clasificar lote</span>
+        </button>
+      </div>
+
+      <!-- De Color Galpón -->
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="inline-flex items-center space-x-1 text-xs font-bold text-amber-200">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-600 border border-amber-400 inline-block"></span>
+              <span>De Color</span>
+            </span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 font-semibold border border-amber-800/40">Sin clasificar</span>
+          </div>
+          <div class="text-lg font-extrabold text-white">
+            {{ por_seleccionar['De Color'].cajones_decimal }} <span class="text-xs font-normal text-slate-400">caj.</span>
+          </div>
+          <div class="text-[11px] text-amber-400 font-semibold">
+            Te quedan {{ por_seleccionar['De Color'].total_maples }} maples
+          </div>
+          <div class="text-[10px] text-slate-500">
+            ({{ por_seleccionar['De Color'].detalle_texto }})
+          </div>
+        </div>
+        <button onclick="prepararClasificacion('De Color')" class="mt-2.5 w-full py-1.5 bg-amber-900/40 hover:bg-amber-800/60 active:scale-95 text-amber-200 text-[11px] font-bold rounded-lg border border-amber-700/60 flex items-center justify-center space-x-1.5 transition-all">
+          <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i>
+          <span>Clasificar lote</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2: PRODUCTO TERMINADO (HUEVO SELECCIONADO EN CAJONES) -->
+  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md space-y-4">
+    
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <i class="fa-solid fa-boxes-stacked text-emerald-400 text-sm"></i>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">2. Huevo Seleccionado (Venta)</h3>
+      </div>
+      <!-- Selector de pestaña Color / Blanco -->
+      <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+        <button onclick="mostrarSubtab('tab-blanco')" id="btn-tab-blanco" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white font-bold transition-all">
+          Blancos
+        </button>
+        <button onclick="mostrarSubtab('tab-color')" id="btn-tab-color" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">
+          De Color
+        </button>
+      </div>
+    </div>
+
+    <!-- TARJETAS HUEVO BLANCO -->
+    <div id="tab-blanco" class="space-y-2">
+      <div class="grid grid-cols-2 gap-2">
+        {% for calibre in ['Chico', 'Mediano', 'Grande', 'Especial'] %}
+        {% set item = seleccionado['Blanco'][calibre] %}
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 relative hover:border-slate-700 transition-all flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-slate-200">{{ calibre }}</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">Blanco</span>
+            </div>
+            <div class="text-lg font-black text-white">
+              {{ item.cajones_decimal }} <span class="text-[11px] font-normal text-slate-400">Caj.</span>
+            </div>
+            <div class="text-[11px] text-emerald-400 font-medium">
+              {{ item.total_maples }} Maples
+            </div>
+            <div class="text-[10px] text-slate-500">
+              ({{ item.detalle_texto }})
+            </div>
+          </div>
+          
+          <button onclick="prepararVenta('Blanco', '{{ calibre }}')" class="mt-2.5 w-full py-1.5 bg-slate-800 hover:bg-emerald-950 hover:text-emerald-300 hover:border-emerald-700/60 active:scale-95 text-slate-300 text-[11px] font-bold rounded-lg border border-slate-700 transition-all flex items-center justify-center space-x-1">
+            <i class="fa-solid fa-cart-arrow-down text-[10px]"></i>
+            <span>Despachar</span>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- TARJETAS HUEVO DE COLOR -->
+    <div id="tab-color" class="space-y-2 hidden">
+      <div class="grid grid-cols-2 gap-2">
+        {% for calibre in ['Chico', 'Mediano', 'Grande', 'Especial'] %}
+        {% set item = seleccionado['De Color'][calibre] %}
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 relative hover:border-slate-700 transition-all flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-amber-200">{{ calibre }}</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-950/60 text-amber-400 border border-amber-900/40">Color</span>
+            </div>
+            <div class="text-lg font-black text-white">
+              {{ item.cajones_decimal }} <span class="text-[11px] font-normal text-slate-400">Caj.</span>
+            </div>
+            <div class="text-[11px] text-amber-400 font-medium">
+              {{ item.total_maples }} Maples
+            </div>
+            <div class="text-[10px] text-slate-500">
+              ({{ item.detalle_texto }})
+            </div>
+          </div>
+
+          <button onclick="prepararVenta('De Color', '{{ calibre }}')" class="mt-2.5 w-full py-1.5 bg-slate-800 hover:bg-amber-950 hover:text-amber-300 hover:border-amber-700/60 active:scale-95 text-slate-300 text-[11px] font-bold rounded-lg border border-slate-700 transition-all flex items-center justify-center space-x-1">
+            <i class="fa-solid fa-cart-arrow-down text-[10px]"></i>
+            <span>Despachar</span>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- VISTA PREVIA RÁPIDA DE ÚLTIMOS MOVIMIENTOS -->
+  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+        <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+        <span>Últimas Operaciones</span>
+      </h3>
+      <a href="{{ url_for('historial') }}" class="text-[11px] font-bold text-emerald-400 hover:underline flex items-center space-x-1">
+        <span>Ver todas</span>
+        <i class="fa-solid fa-chevron-right text-[9px]"></i>
+      </a>
+    </div>
+
+    {% if ultimos_movimientos %}
+      <div class="space-y-2">
+        {% for mov in ultimos_movimientos %}
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold {% if mov.tipo == 'Ingreso Galpón' %}bg-emerald-500/20 text-emerald-400{% elif mov.tipo == 'Clasificación' %}bg-sky-500/20 text-sky-400{% elif mov.tipo == 'Venta / Despacho' %}bg-amber-500/20 text-amber-400{% else %}bg-purple-500/20 text-purple-400{% endif %}">
+              {% if mov.tipo == 'Ingreso Galpón' %}
+                <i class="fa-solid fa-warehouse"></i>
+              {% elif mov.tipo == 'Clasificación' %}
+                <i class="fa-solid fa-arrow-right-arrow-left"></i>
+              {% elif mov.tipo == 'Venta / Despacho' %}
+                <i class="fa-solid fa-truck"></i>
+              {% else %}
+                <i class="fa-solid fa-sliders"></i>
+              {% endif %}
+            </div>
+            <div>
+              <div class="font-bold text-slate-200">
+                {{ mov.tipo }} • <span class="text-slate-400">{{ mov.color }}{% if mov.calibre and mov.calibre != 'Sin Clasificar' %} ({{ mov.calibre }}){% endif %}</span>
+              </div>
+              <div class="text-[10px] text-slate-500">
+                {{ mov.fecha_hora[11:16] }} hs • Por {{ mov.usuario }}
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="font-extrabold {% if mov.total_maples > 0 %}text-emerald-400{% else %}text-amber-400{% endif %}">
+              {% if mov.total_maples > 0 %}+{% endif %}{{ mov.total_maples }} <span class="text-[10px] font-normal text-slate-400">map.</span>
+            </div>
+            <div class="text-[10px] text-slate-500">
+              ({{ mov.cajones_input }} caj. {{ mov.maples_input }} map.)
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-6 text-slate-500 text-xs">
+        <i class="fa-solid fa-folder-open text-2xl mb-1 text-slate-600 block"></i>
+        Sin movimientos registrados hoy. Toca (+) para comenzar.
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function mostrarSubtab(id) {
+    const tabBlanco = document.getElementById('tab-blanco');
+    const tabColor = document.getElementById('tab-color');
+    const btnBlanco = document.getElementById('btn-tab-blanco');
+    const btnColor = document.getElementById('btn-tab-color');
+
+    if (id === 'tab-blanco') {
+      tabBlanco.classList.remove('hidden');
+      tabColor.classList.add('hidden');
+      btnBlanco.className = "px-2.5 py-1 rounded-lg bg-slate-700 text-white font-bold transition-all";
+      btnColor.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all";
+    } else {
+      tabBlanco.classList.add('hidden');
+      tabColor.classList.remove('hidden');
+      btnColor.className = "px-2.5 py-1 rounded-lg bg-amber-800 text-amber-100 font-bold transition-all";
+      btnBlanco.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all";
+    }
+  }
+
+  function prepararClasificacion(color) {
+    abrirModalOperacion('clasificacion');
+    // Seleccionar color
+    const radiosColor = document.getElementsByName('color');
+    for (let r of radiosColor) {
+      if (r.value === color) r.checked = true;
+    }
+  }
+
+  function prepararVenta(color, calibre) {
+    abrirModalOperacion('venta');
+    // Seleccionar color
+    const radiosColor = document.getElementsByName('color');
+    for (let r of radiosColor) {
+      if (r.value === color) r.checked = true;
+    }
+    // Seleccionar calibre
+    const radiosCalibre = document.getElementsByName('calibre');
+    for (let r of radiosCalibre) {
+      if (r.value === calibre) r.checked = true;
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="eggGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <!-- Huevo estilizado -->
+  <path d="M256,90 C185,90 120,185 120,290 C120,380 180,425 256,425 C332,425 392,380 392,290 C392,185 327,90 256,90 Z" fill="url(#eggGrad)"/>
+  <!-- Sombra interior/volumen -->
+  <path d="M290,120 C340,165 370,225 370,290 C370,360 330,410 270,422 C328,415 372,365 372,290 C372,210 325,140 290,120 Z" fill="#fde68a" opacity="0.6"/>
+  <!-- Letra S & G estilizada o símbolo granja -->
+  <circle cx="210" cy="230" r="18" fill="#d97706" opacity="0.3"/>
+  <path d="M190,320 L322,320 M200,345 L312,345" stroke="#047857" stroke-width="12" stroke-linecap="round"/>
+</svg>

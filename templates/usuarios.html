@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Usuarios - Avícola San Gabriel{% endblock %}
+
+{% block content %}
+<div class="space-y-4 pt-2">
+
+  <!-- CABECERA -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center space-x-2">
+        <i class="fa-solid fa-users-gear text-emerald-400"></i>
+        <span>Gestión de Usuarios</span>
+      </h2>
+      <p class="text-xs text-slate-400">Control de operarios y accesos al sistema</p>
+    </div>
+  </div>
+
+  <!-- FORMULARIO CREAR USUARIO / OPERARIO -->
+  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md">
+    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center space-x-1.5">
+      <i class="fa-solid fa-user-plus text-emerald-400"></i>
+      <span>Nuevo Usuario / Operario</span>
+    </h3>
+
+    <form action="{{ url_for('usuarios') }}" method="POST" class="space-y-3">
+      <input type="hidden" name="accion" value="crear">
+
+      <div>
+        <label for="nombre" class="block text-[11px] font-semibold text-slate-400 mb-1">Nombre Completo</label>
+        <input type="text" id="nombre" name="nombre" required placeholder="Ej: Juan Pérez"
+          class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div>
+        <label for="username" class="block text-[11px] font-semibold text-slate-400 mb-1">Nombre de Usuario (Login)</label>
+        <input type="text" id="username" name="username" required placeholder="ej: juan" pattern="^[a-zA-Z0-9_.-]+$"
+          class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <!-- Contraseña -->
+        <div>
+          <label for="new_password" class="block text-[11px] font-semibold text-slate-400 mb-1">Contraseña (Mín. 6 caracteres)</label>
+          <div class="relative">
+            <input type="password" id="new_password" name="password" minlength="6" required placeholder="Mínimo 6 caracteres"
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              oninput="validarContrasenas()">
+            <button type="button" onclick="togglePasswordVisibility('new_password', 'eye-new-pwd')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white" title="Ver contraseña">
+              <i id="eye-new-pwd" class="fa-solid fa-eye text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Confirmar Contraseña -->
+        <div>
+          <label for="new_password_confirm" class="block text-[11px] font-semibold text-slate-400 mb-1">Confirmar Contraseña</label>
+          <div class="relative">
+            <input type="password" id="new_password_confirm" name="password_confirm" minlength="6" required placeholder="Repetir contraseña"
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              oninput="validarContrasenas()">
+            <button type="button" onclick="togglePasswordVisibility('new_password_confirm', 'eye-confirm-pwd')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white" title="Ver contraseña">
+              <i id="eye-confirm-pwd" class="fa-solid fa-eye text-xs"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feedback visual dinámico de validación de contraseña -->
+      <div id="feedback-password" class="text-[11px] font-medium hidden rounded-lg px-2.5 py-1.5 transition-all"></div>
+
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 mb-1">Rol en la Granja</label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="cursor-pointer">
+            <input type="radio" name="rol" value="Operario" class="sr-only peer" checked>
+            <div class="py-2 px-2 text-center rounded-xl border border-slate-700 bg-slate-950 peer-checked:border-emerald-500 peer-checked:bg-emerald-950/60 peer-checked:text-emerald-300 text-xs font-bold transition-all">
+              <i class="fa-solid fa-hard-hat mr-1"></i> Operario
+            </div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="rol" value="Admin" class="sr-only peer">
+            <div class="py-2 px-2 text-center rounded-xl border border-slate-700 bg-slate-950 peer-checked:border-purple-500 peer-checked:bg-purple-950/60 peer-checked:text-purple-300 text-xs font-bold transition-all">
+              <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" id="btn-crear-usuario" class="w-full h-11 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl font-bold text-sm shadow transition-all flex items-center justify-center space-x-1.5 mt-2">
+        <i class="fa-solid fa-plus"></i>
+        <span>Guardar Usuario</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- LISTA DE USUARIOS ACTIVOS -->
+  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-md space-y-3">
+    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+      <i class="fa-solid fa-address-book text-slate-400"></i>
+      <span>Usuarios Registrados ({{ usuarios|length }})</span>
+    </h3>
+
+    <div class="space-y-2">
+      {% for u in usuarios %}
+      <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm {% if u.rol == 'Admin' %}bg-purple-900/40 text-purple-300 border border-purple-700/50{% else %}bg-emerald-900/40 text-emerald-300 border border-emerald-700/50{% endif %}">
+            {{ u.nombre[0]|upper }}
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white flex items-center space-x-2">
+              <span>{{ u.nombre }}</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded font-semibold {% if u.rol == 'Admin' %}bg-purple-950 text-purple-300 border border-purple-800{% else %}bg-emerald-950 text-emerald-300 border border-emerald-800{% endif %}">
+                {{ u.rol }}
+              </span>
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono">
+              @{{ u.username }}
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-1.5">
+          <!-- Botón Editar Usuario -->
+          <button type="button" onclick="abrirModalEditar('{{ u.id }}', '{{ u.nombre|escape }}', '{{ u.username|escape }}', '{{ u.rol }}')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-sky-900/50 text-slate-300 hover:text-sky-400 border border-slate-700 active:scale-95 flex items-center justify-center transition-colors" title="Modificar usuario">
+            <i class="fa-solid fa-pen-to-square text-xs"></i>
+          </button>
+
+          {% if u.id != session.get('user_id') %}
+          <!-- Botón Eliminar Usuario -->
+          <form action="{{ url_for('usuarios') }}" method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar al usuario {{ u.username }}?');">
+            <input type="hidden" name="accion" value="eliminar">
+            <input type="hidden" name="user_id" value="{{ u.id }}">
+            <button type="submit" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 border border-slate-700 active:scale-95 flex items-center justify-center transition-colors" title="Eliminar usuario">
+              <i class="fa-solid fa-trash text-xs"></i>
+            </button>
+          </form>
+          {% else %}
+          <span class="text-[10px] text-emerald-400 font-semibold px-2 py-1 bg-emerald-950/60 rounded border border-emerald-800/40">
+            Tú
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- MODAL BOTTOM SHEET: MODIFICAR USUARIO -->
+  <div id="modal-editar-backdrop" class="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300" onclick="cerrarModalEditar(event)">
+    <div id="modal-editar-sheet" class="absolute bottom-0 inset-x-0 max-w-lg mx-auto bg-slate-900 border-t border-slate-800 rounded-t-3xl shadow-2xl p-5 translate-y-full sheet-transition max-h-[92vh] overflow-y-auto" onclick="event.stopPropagation()">
+      
+      <!-- Tirador táctil -->
+      <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-4 cursor-pointer" onclick="cerrarModalEditar()"></div>
+
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-user-pen"></i>
+          </div>
+          <h2 class="text-base font-bold text-white">Modificar Usuario</h2>
+        </div>
+        <button onclick="cerrarModalEditar()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center active:scale-90">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form action="{{ url_for('usuarios') }}" method="POST" id="form-editar-usuario" class="space-y-3.5">
+        <input type="hidden" name="accion" value="editar">
+        <input type="hidden" name="user_id" id="edit_user_id" value="">
+
+        <div>
+          <label for="edit_nombre" class="block text-[11px] font-semibold text-slate-400 mb-1">Nombre Completo</label>
+          <input type="text" id="edit_nombre" name="nombre" required placeholder="Ej: Juan Pérez"
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+
+        <div>
+          <label for="edit_username" class="block text-[11px] font-semibold text-slate-400 mb-1">Usuario (Login)</label>
+          <input type="text" id="edit_username" name="username" required placeholder="ej: juan" pattern="^[a-zA-Z0-9_.-]+$"
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 mb-1">Rol</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="rol" id="edit_rol_operario" value="Operario" class="sr-only peer">
+              <div class="py-2 px-2 text-center rounded-xl border border-slate-700 bg-slate-950 peer-checked:border-emerald-500 peer-checked:bg-emerald-950/60 peer-checked:text-emerald-300 text-xs font-bold transition-all">
+                <i class="fa-solid fa-hard-hat mr-1"></i> Operario
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="rol" id="edit_rol_admin" value="Admin" class="sr-only peer">
+              <div class="py-2 px-2 text-center rounded-xl border border-slate-700 bg-slate-950 peer-checked:border-purple-500 peer-checked:bg-purple-950/60 peer-checked:text-purple-300 text-xs font-bold transition-all">
+                <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cambio de Contraseña Opcional -->
+        <div class="pt-2 border-t border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wide">Cambiar Contraseña</span>
+            <span class="text-[10px] text-slate-500 font-medium">(Opcional)</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label for="edit_password" class="block text-[11px] font-semibold text-slate-400 mb-1">Nueva Contraseña</label>
+              <div class="relative">
+                <input type="password" id="edit_password" name="password" minlength="6" placeholder="Dejar en blanco para mantener"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                  oninput="validarContrasenasEdicion()">
+                <button type="button" onclick="togglePasswordVisibility('edit_password', 'eye-edit-pwd')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white" title="Ver contraseña">
+                  <i id="eye-edit-pwd" class="fa-solid fa-eye text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label for="edit_password_confirm" class="block text-[11px] font-semibold text-slate-400 mb-1">Confirmar Nueva</label>
+              <div class="relative">
+                <input type="password" id="edit_password_confirm" name="password_confirm" minlength="6" placeholder="Repetir si se cambió"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-3 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                  oninput="validarContrasenasEdicion()">
+                <button type="button" onclick="togglePasswordVisibility('edit_password_confirm', 'eye-edit-confirm-pwd')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white" title="Ver contraseña">
+                  <i id="eye-edit-confirm-pwd" class="fa-solid fa-eye text-xs"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feedback visual en edición -->
+          <div id="feedback-edit-password" class="text-[11px] font-medium hidden rounded-lg px-2.5 py-1.5 transition-all"></div>
+        </div>
+
+        <button type="submit" id="btn-guardar-edicion" class="w-full h-12 bg-sky-600 hover:bg-sky-500 active:scale-[0.98] text-white rounded-xl font-bold text-sm shadow-lg shadow-sky-800/40 transition-all flex items-center justify-center space-x-1.5 mt-3">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Guardar Modificaciones</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function togglePasswordVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (!input || !icon) return;
+
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.classList.remove('fa-eye');
+      icon.classList.add('fa-eye-slash');
+    } else {
+      input.type = 'password';
+      icon.classList.remove('fa-eye-slash');
+      icon.classList.add('fa-eye');
+    }
+  }
+
+  function validarContrasenas() {
+    const pwd = document.getElementById('new_password')?.value || '';
+    const confirm = document.getElementById('new_password_confirm')?.value || '';
+    const feedback = document.getElementById('feedback-password');
+    const btnSubmit = document.getElementById('btn-crear-usuario');
+
+    if (!pwd && !confirm) {
+      feedback.className = "text-[11px] font-medium hidden rounded-lg px-2.5 py-1.5 transition-all";
+      feedback.innerHTML = "";
+      btnSubmit.disabled = false;
+      return;
+    }
+
+    feedback.classList.remove('hidden');
+
+    if (pwd.length < 6) {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-amber-950/60 text-amber-300 border border-amber-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> La contraseña debe tener al menos 6 caracteres (llevas ${pwd.length}).`;
+      btnSubmit.disabled = true;
+      btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+    } else if (confirm && pwd !== confirm) {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-red-950/60 text-red-300 border border-red-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1"></i> Las contraseñas no coinciden.`;
+      btnSubmit.disabled = true;
+      btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+    } else if (confirm && pwd === confirm) {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-emerald-950/60 text-emerald-300 border border-emerald-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ¡Contraseñas coincidentes y seguras!`;
+      btnSubmit.disabled = false;
+      btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-sky-950/60 text-sky-300 border border-sky-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-info-circle mr-1"></i> Ahora repite la contraseña en el campo de confirmación.`;
+      btnSubmit.disabled = false;
+      btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  function validarContrasenasEdicion() {
+    const pwd = document.getElementById('edit_password')?.value || '';
+    const confirm = document.getElementById('edit_password_confirm')?.value || '';
+    const feedback = document.getElementById('feedback-edit-password');
+    const btnSubmit = document.getElementById('btn-guardar-edicion');
+
+    if (!pwd && !confirm) {
+      feedback.className = "text-[11px] font-medium hidden rounded-lg px-2.5 py-1.5 transition-all";
+      feedback.innerHTML = "";
+      btnSubmit.disabled = false;
+      btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+      return;
+    }
+
+    feedback.classList.remove('hidden');
+
+    if (pwd.length < 6) {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-amber-950/60 text-amber-300 border border-amber-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> La nueva contraseña debe tener al menos 6 caracteres.`;
+      btnSubmit.disabled = true;
+      btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+    } else if (confirm && pwd !== confirm) {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-red-950/60 text-red-300 border border-red-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1"></i> Las contraseñas no coinciden.`;
+      btnSubmit.disabled = true;
+      btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+    } else if (confirm && pwd === confirm) {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-emerald-950/60 text-emerald-300 border border-emerald-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ¡Nueva contraseña válida y confirmada!`;
+      btnSubmit.disabled = false;
+      btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      feedback.className = "text-[11px] font-medium block rounded-lg px-2.5 py-1.5 bg-sky-950/60 text-sky-300 border border-sky-800/60";
+      feedback.innerHTML = `<i class="fa-solid fa-info-circle mr-1"></i> Repite la contraseña para confirmar el cambio.`;
+      btnSubmit.disabled = false;
+      btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  // Modal Editar Bottom Sheet
+  function abrirModalEditar(id, nombre, username, rol) {
+    const backdrop = document.getElementById('modal-editar-backdrop');
+    const sheet = document.getElementById('modal-editar-sheet');
+    if (!backdrop || !sheet) return;
+
+    document.getElementById('edit_user_id').value = id;
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_username').value = username;
+    
+    if (rol === 'Admin') {
+      document.getElementById('edit_rol_admin').checked = true;
+    } else {
+      document.getElementById('edit_rol_operario').checked = true;
+    }
+
+    document.getElementById('edit_password').value = '';
+    document.getElementById('edit_password_confirm').value = '';
+    validarContrasenasEdicion();
+
+    backdrop.classList.remove('hidden');
+    setTimeout(() => {
+      backdrop.classList.remove('opacity-0');
+      sheet.classList.remove('translate-y-full');
+    }, 10);
+  }
+
+  function cerrarModalEditar(e) {
+    const backdrop = document.getElementById('modal-editar-backdrop');
+    const sheet = document.getElementById('modal-editar-sheet');
+    if (!backdrop || !sheet) return;
+
+    backdrop.classList.add('opacity-0');
+    sheet.classList.add('translate-y-full');
+    setTimeout(() => {
+      backdrop.classList.add('hidden');
+    }, 280);
+  }
+</script>
+{% endblock %}
