@@ -1,10 +1,28 @@
 import os
 import sqlite3
 import requests
-from werkzeug.security import generate_password_hash
 
-TURSO_URL = os.environ.get("TURSO_DATABASE_URL", "libsql://avicola-db-jeremarturano.aws-sa-east-1.turso.io")
-TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTE4MTk3MDAsImlkIjoiMDFhMTMwYzYtNzEwMS03NjY5LWJkZDgtNDVkYjg4OTkwMGI4Iiwia2lkIjoieXFKemx5eW0yMmFWQVJqX2g3bldVbzNnczFJNU9MWkRhdlZRbnl2UjJLVSIsInJpZCI6ImVjNTZiZjk1LTUwMDAtNDcyOC1hMWY1LTY1Y2MwNzFhMDZkOCJ9.p07tQcRH1yEulW_VarZhqEtz1Rl-LAiXiwdEwnmidWfWvnZktXPm7sO05h_hk4IVpHWLltRQgICjGmrJAUTWBw")
+# Cargar variables de entorno locales desde archivo .env si existe
+def _load_env_file():
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
+_load_env_file()
+
+TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
+TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
 class TursoRow(dict):
     """Permite acceso como diccionario o por índice tipo sqlite3.Row."""
